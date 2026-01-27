@@ -144,7 +144,7 @@ void test4()
 	uint8_t read_reg = 0;
 	Wake79616();
 
-	HAL_Delay(2);
+	//HAL_Delay(2);
 
 	AutoAddress_Ring();
 
