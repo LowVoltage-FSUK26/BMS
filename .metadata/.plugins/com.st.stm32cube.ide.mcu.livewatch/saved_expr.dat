@@ -2,10 +2,4 @@ totalV
 cellVoltages_board1
 cellVoltages_board0
 final_value
-response_frame2
-currentBoard
-received_data
-autoaddr_response_frame
-response_frame2
-adc1
-adc2
+gpio8_voltage
