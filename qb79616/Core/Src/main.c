@@ -84,7 +84,7 @@ uint8_t received_data2 = 0;
 uint8_t Buffer[5];
 
 int totalV = 0;
-float final_value;
+float final_value = 0;
 int cellVoltages_board0[16] = {0};
 int cellVoltages_board1[16] = {0};
 
@@ -160,7 +160,7 @@ void configureGPIO8_ADC(void) {
 }
 
 
-// Function to read TSERF voltage in μV
+// Function to read TSERF voltage in μV  !!!!!!!! Incorrect Function !!!!
 float readTSREFVoltage(void) {
 
 
@@ -177,26 +177,22 @@ float readTSREFVoltage(void) {
 	return voltage_uV;
 }
 
+float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
 
-
-float readGPIO8Voltage(uint8_t BID) {
-
-	float voltage_uV;
-
+	float voltage_uV = 989; //Special value for invalid GPIO_NUM
 	uint16_t buffer[2];
+	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
+	{
 
-	readReg(BID, GPIO8_HI, &buffer[1], 1, 0, FRMWRT_SGL_R);
-	readReg(BID, GPIO8_LO, &buffer[2], 1, 0, FRMWRT_SGL_R);
+	readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
+	readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[2]), 1, 0, FRMWRT_SGL_R);
 
 	//raw_value = (int16_t)((hi << 8) | lo);
 	raw_value =((buffer[1] << 8) | buffer[2]);
 	voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
+	}
 	return voltage_uV;
 }
-
-
-
-
 
 
 /* USER CODE END 0 */
@@ -284,9 +280,9 @@ int main(void)
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 		HAL_Delay(200);
 
-		gpio8_voltage = readGPIO8Voltage(1);
+		gpio8_voltage = readGPIOVoltage(1, 8);
 		HAL_Delay(1000);
-		gpio8_voltage = readGPIO8Voltage(2);
+		gpio8_voltage = readGPIOVoltage(2, 8);
 
 
 		/* USER CODE END WHILE */
