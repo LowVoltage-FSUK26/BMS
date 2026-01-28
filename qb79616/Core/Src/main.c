@@ -146,11 +146,6 @@ void StartDefaultTask(void const * argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-
-//// External functions to access the device
-//extern void writeReg(uint8_t bID, uint16_t wAddr, uint8_t data, uint8_t len, uint8_t writeType);
-//extern uint8_t readReg(uint8_t bID, uint16_t wAddr, uint8_t* pData, uint8_t len, uint32_t timeout, uint8_t readType);
-
 // Function to enable TSREF
 void enableTSREF(void) {
 	writeReg(1, BQ79616_CONTROL2, 0x01, 1,FRMWRT_SGL_W);
@@ -164,27 +159,6 @@ void configureGPIO8_ADC(void) {
 	writeReg(2, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
 }
 
-//// Function to start the Main ADC
-//void startMainADC(void) {
-//    writeReg(0, ADC_CTRL1, MAIN_GO_BIT, 1, FRMWRT_ALL_W);
-//}
-
-// Function to read GPIO1 voltage in μV
-float readGPIO1Voltage(void) {
-	uint8_t hi, lo;
-	int16_t raw_value;
-	float voltage_uV;
-
-	uint8_t buffer[1];
-
-	hi = readReg(1, GPIO1_HI_REG, buffer, 1, 0, FRMWRT_SGL_R);
-	lo = readReg(1, GPIO1_LO_REG, buffer, 1, 0, FRMWRT_SGL_R);
-
-	raw_value = (int16_t)((hi << 8) | lo);
-	voltage_uV = raw_value * VLSB_GPIO;
-
-	return voltage_uV;
-}
 
 // Function to read TSERF voltage in μV
 float readTSREFVoltage(void) {
