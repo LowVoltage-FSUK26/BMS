@@ -21,11 +21,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include <stdint.h>
+#include <stdio.h>
 #include "bq79616.h"
 #include "bq79600.h"
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "BMS_tests.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,6 +39,26 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+// Example register addresses (replace with actual addresses from datasheet)
+#define CONTROL2        BQ79616_CONTROL2
+#define TSREF_EN_BIT    0x01
+
+#define GPIO_CONF1      BQ79616_GPIO_CONF1
+#define GPIO1_ADC_BIT   0x12
+#define ADC_CTRL1       BQ79616_ADC_CTRL1
+#define MAIN_GO_BIT     0x01
+
+#define GPIO1_HI_REG    GPIO1_HI
+#define GPIO1_LO_REG    GPIO1_LO
+
+#define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
+#define R1              10000 // Pull-up resistor for thermistor in ohms
+
+#define DIETEMP1_HI_REG DIETEMP1_HI  // High byte register of Die Temperature
+#define DIETEMP1_LO_REG DIETEMP1_LO  // Low byte register of Die Temperature
+#define VLSB_MAIN_DIETEMP1 0.0078125 // LSB value in °C
+
 
 /* USER CODE END PD */
 
@@ -55,8 +79,28 @@ UART_HandleTypeDef huart2;
 TaskHandle_t defaultTaskHandle;
 TaskHandle_t BmsTaskHandle;
 
+//Private user Variables
 uint8_t received_data1 = 0;
 uint8_t received_data2 = 0;
+uint8_t Buffer[5];
+
+int totalV = 0;
+float final_value;
+int cellVoltages_board0[16] = {0};
+int cellVoltages_board1[16] = {0};
+
+int16_t raw_value;
+uint8_t hi, lo;
+
+float gpio1_voltage=5;
+float gpio8_voltage=5.254654;
+float tsref_voltage = 0; // Example: 5V in μV
+float rntc=2.56;
+
+extern volatile uint32_t ms_counter ;
+
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -103,167 +147,6 @@ void BMS_Init(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-void TIM2_Delay_ms(uint32_t delay_ms)
-{
-    uint16_t start;
-    uint16_t delay_ticks = delay_ms * 1000U; // convert ms → µs
-
-    for(volatile int i=0; i<100; i++);
-    start = TIM2->CNT;
-
-    while ((uint16_t)(TIM2->CNT - start) < delay_ticks)
-    {
-        /* wait */
-    }
-}
-
-void test1(){ //success!!!
-	Wake79616();
-
-	HAL_Delay(2);
-
-	AutoAddress();
-
-}
-/** Test Case 2: Voltage Reading **/
-int totalV = 0;
-float final_value;
-int cellVoltages_board0[16] = {0};
-int cellVoltages_board1[16] = {0};
-float test2(){ //success!!!
-	int totalV1 = 0;
-	int totalV2 = 0;
-
-	uint8_t activeCells = 16;
-	// writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_ALL_W);
-	readBoardVoltages(1, activeCells, &totalV1, cellVoltages_board0);
-
-	HAL_Delay(100);
-	readBoardVoltages(2, activeCells, &totalV2, cellVoltages_board1);
-	totalV=totalV1 + totalV2;
-	return ((totalV1 + totalV2)*0.00019073);
-	/** If this works modify to read more than one board **/
-}
-/** Test Case 3: Configurations Needed for fault detection **/
-void test3(){ //success!!!
-
-	//enable temp protector using 1 gpio thermistor
-	//remember to set vcb done to vuv
-	uint8_t status_OTUT = configure_OTUT(0, 1);
-
-	HAL_UART_Transmit(&huart2, &status_OTUT, sizeof(status_OTUT), 100);
-	HAL_Delay(50);
-
-	//enable voltage protector for board 0 all 16 cells
-	uint8_t status_OVUV = configure_OVUV(0, 16);
-
-	HAL_UART_Transmit(&huart2, &status_OVUV, sizeof(status_OVUV), 100);
-
-	/** expected: undervoltage fault **/
-	//further testing fault interrupt test
-}
-
-int comm_x = 0;
-void test4()
-{
-	uint8_t fault_array[TOTALBOARDS] = {0};
-	uint8_t msg_received = 0;
-	uint8_t read_reg = 0;
-	Wake79616();
-
-	//HAL_Delay(2);
-
-	AutoAddress_Ring();
-
-	//Time for physically removing the cable between 2 EVMs
-	//    HAL_Delay(3000);
-
-	//Reset all faults
-	ResetAllFaults(0, FRMWRT_ALL_W);
-
-	//Read for communication Error
-	for(int i = 0; i < TOTALBOARDS; i++)
-	{
-		if(readReg(i, FAULT_RST2, fault_array + i, 1, 200, FRMWRT_SGL_R) !=0)
-		{
-			msg_received++;
-		}
-		fault_array[i] = fault_array[i] & 0x1F;
-
-		if(fault_array[i] != 0)
-			break;
-	}
-
-	//Communication error
-	if(msg_received != TOTALBOARDS)
-	{
-		//Print using uart "Communication Fault detected"
-		//Reverse Communication Direction of Base
-		readReg(0, BQ79616_CONTROL1, &read_reg, 1, 200, FRMWRT_SGL_R);
-		writeReg(0, BQ79616_CONTROL1, read_reg | (1 << 7), 1, FRMWRT_SGL_W);
-
-		//Revese Communication Direction for the reset of chain
-		for(int i = 0; i < TOTALBOARDS; i++)
-		{
-			readReg(i, BQ79616_CONTROL1, &read_reg, 1, 200, FRMWRT_SGL_R);
-			writeReg(i, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_SGL_W);
-		}
-	}
-	else
-	{
-		//Print using uart "NO commuincation fault"
-		comm_x = 0;
-	}
-
-	//repeat test again after reversing direction
-	if(readReg(TOTALBOARDS - msg_received, BQ79616_CONTROL1, &read_reg, 1, 200, FRMWRT_SGL_R) != 0)
-	{
-		//print via uart read_reg
-		comm_x = 1;
-	}
-	else
-	{
-		//print via uart "Coundn't reach board"
-		comm_x = 200;
-	}
-
-}
-uint8_t Buffer[5];
-
-
-#include <stdint.h>
-#include <stdio.h>
-
-// Example register addresses (replace with actual addresses from datasheet)
-#define CONTROL2        BQ79616_CONTROL2
-#define TSREF_EN_BIT    0x01
-
-#define GPIO_CONF1      BQ79616_GPIO_CONF1
-#define GPIO1_ADC_BIT   0x12
-#define ADC_CTRL1       BQ79616_ADC_CTRL1
-#define MAIN_GO_BIT     0x01
-
-#define GPIO1_HI_REG    GPIO1_HI
-#define GPIO1_LO_REG    GPIO1_LO
-
-#define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
-#define R1              10000 // Pull-up resistor for thermistor in ohms
-
-#define DIETEMP1_HI_REG DIETEMP1_HI  // High byte register of Die Temperature
-#define DIETEMP1_LO_REG DIETEMP1_LO  // Low byte register of Die Temperature
-#define VLSB_MAIN_DIETEMP1 0.0078125 // LSB value in °C
-
-int16_t raw_value;
-uint8_t hi, lo;
-
-float gpio1_voltage=5;
-float gpio8_voltage=5.254654;
-float tsref_voltage = 0; // Example: 5V in μV
-float rntc=2.56;
-
-extern volatile uint32_t ms_counter ;
-
 
 
 //// External functions to access the device
