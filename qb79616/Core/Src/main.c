@@ -363,47 +363,34 @@ int main(void)
 	MX_TIM2_Init();
 	/* USER CODE BEGIN 2 */
 	//BareMetal code
-	/*
-  HAL_TIM_Base_Start_IT(&htim2);
 
+	HAL_TIM_Base_Start_IT(&htim2);
 
-
+	//=============================
+	//Initializing Daisy Chain Communication
+	//=============================
 
 	Wake79600();
 
 	Bridge_AutoAddress();
 
-	//   writeReg(0, BQ79616_CONTROL1, 0x21, 1, FRMWRT_ALL_W);
-	//  readReg(0, Bridge_SLP_TIMEOUT, &received_data, 1, 100, FRMWRT_SGL_R);
-
-	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-	readReg(0, OTP_ECC_DATAIN1, &received_data1, 1, 0, FRMWRT_STK_R);
-	readReg(0, OTP_ECC_DATAIN2, &received_data1, 1, 0, FRMWRT_STK_R);
-	readReg(0, OTP_ECC_DATAIN3, &received_data1, 1, 0, FRMWRT_STK_R);
-	readReg(0, OTP_ECC_DATAIN4, &received_data1, 1, 0, FRMWRT_STK_R);
-	readReg(0, OTP_ECC_DATAIN5, &received_data1, 1, 0, FRMWRT_STK_R);
-	readReg(0, OTP_ECC_DATAIN6, &received_data1, 1, 0, FRMWRT_STK_R);
-	readReg(0, OTP_ECC_DATAIN7, &received_data1, 1, 0, FRMWRT_STK_R);
-	readReg(0, OTP_ECC_DATAIN8, &received_data1, 1, 0, FRMWRT_STK_R);
-
-
-
-    HAL_Delay(10);
+	HAL_Delay(10);
 	enableTSREF();
 	configureGPIO8_ADC();
 
-//    configure_OTUT(1, 0);
-//    configure_OTUT(2, 0);
-
-
+	//=============================
+	//Initializing Daisy Chain ADCs
+	//=============================
 	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
 	HAL_Delay(10);
 	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
 	HAL_Delay(10);
+
+	//Verifying ADC init
 	readReg(1, BQ79616_ADC_CTRL1, &received_data1, 1, 0, FRMWRT_SGL_R);
 
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
-	 */
+
 
 	//=============Define Tasks=================//
 	xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
@@ -418,25 +405,17 @@ int main(void)
 	{
 		HAL_Delay(10);
 		final_value = test2();
-		//HAL_Delay(30);
+
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		HAL_Delay(200);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 		HAL_Delay(200);
-		//ReadDieTempStack();
 
-		//		for(int i = 1; i <=8; i++)
-		//		{
-		//			gpio8_voltage = readGPIOVoltage(i);
-		//			HAL_Delay(100);
-		//		}
 		gpio8_voltage = readGPIO8Voltage(1);
 		HAL_Delay(1000);
 		gpio8_voltage = readGPIO8Voltage(2);
 
-		///rntc = gpioVoltageToRntc(gpio1_voltage, tsref_voltage);
-		//readReg(1, ADC_STAT1, &received_data, 1, 0, FRMWRT_SGL_R);
 
 		/* USER CODE END WHILE */
 

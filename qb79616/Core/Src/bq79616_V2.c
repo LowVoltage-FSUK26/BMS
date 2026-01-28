@@ -102,7 +102,6 @@ void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
  *
  * Adjust pin names/ports as needed.
  */
-
 void Wake79616(void)
 {
     HAL_UART_DeInit(&huart1);
@@ -125,14 +124,8 @@ void Wake79616(void)
     // Delay 2.5 ms (using HAL_Delay which works in ms)
    
     HAL_Delay(2);
-//    DELAY_microseconds(500);
-//	DELAY_microseconds(500);
-//	DELAY_microseconds(500);
-//	DELAY_microseconds(500);
-//	DELAY_microseconds(500);
-	//note if this doesn't work try 2ms delay using HAL_Delay(2);
 		
-    // Reinitialize UART (this call should reconfigure PA9 to its alternate function)
+    // Reinitialise UART (this call should reconfigure PA9 to its alternate function)
     HAL_UART_Init(&huart1);
 }
 
@@ -150,30 +143,12 @@ void Wake79600(void)
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
-		
-	//HAL_Delay(1000);
+
 		
     // Drive TX low
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
    
     HAL_Delay(2); // WAKE ping = 2.5ms to 3ms
-
-//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
-//
-//    HAL_Delay(1000);
-//
-//    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
-//
-//	HAL_Delay(4); // WAKE ping = 2.5ms to 3ms
-//
-//	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
-//
-//	HAL_Delay(1000);
-//
-//	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
-//
-//	HAL_Delay(5); // WAKE ping = 2.5ms to 3ms
-
 
     // Reinitialize UART (this call should reconfigure PA9 to its alternate function)
     HAL_UART_Init(&huart1);
@@ -330,15 +305,8 @@ void Bridge_AutoAddress(void)
 
     //SET THE HIGHEST DEVICE IN THE STACK AS BOTH STACK AND TOP OF STACK
     writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
-    //SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-//    readReg(1, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-//    readReg(2, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-//    readReg(1, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-//    readReg(2, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-//    readReg(1, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-//    readReg(2, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-//    readReg(1, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-//    readReg(2, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+
+
     //OPTIONAL: read back all device addresses on the Stack
     //Future Modification: Change to stack read
     for(currentBoard=1; currentBoard<TOTALBOARDS; currentBoard++)
@@ -348,6 +316,17 @@ void Bridge_AutoAddress(void)
     }
     //OPTIONAL: read register address 0x2001 and verify that the value is 0x14
     readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+
+    //SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
+	readReg(1, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	readReg(2, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	readReg(1, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	readReg(2, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	readReg(1, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	readReg(2, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	readReg(1, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	readReg(2, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+
     return;
 }
 //Auto Addressing sequence for Ring Configuration
