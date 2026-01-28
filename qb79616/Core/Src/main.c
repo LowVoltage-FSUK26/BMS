@@ -77,6 +77,7 @@ UART_HandleTypeDef huart2;
 
 //Define Tasks Handler to hold task ID
 TaskHandle_t defaultTaskHandle;
+TaskHandle_t BMS_DiagnosticHandle;
 
 //Private user Variables
 uint8_t received_data1 = 0;
@@ -112,6 +113,24 @@ static void MX_TIM2_Init(void);
 
 //Declare Tasks Entery point
 void StartDefaultTask(void const * argument);
+void BMS_Diagnostic(void const * argument);
+
+
+//@Future Improvement
+/*
+ * // only task accessing UART, has queue of a stuct that holds a request (cmd type and task handle)
+ * 		 from cell volatage and temp task then notifies them when their response is available
+ * void BMS_CommsTask(void const * argument);
+ *
+ *	//Sends a read voltage cmd to BMS queue to read cell voltages
+ * void CellVoltageTask(void const * argument);
+ *
+ * //Sends a read voltage cmd to BMS queue to read cell temp
+ * void BMS_ReadTemp(void const * argument);
+ *
+ *
+ */
+
 
 /* Receive buffer (1 byte) */
 //uint8_t rx_byte[5];
@@ -179,17 +198,17 @@ float readTSREFVoltage(void) {
 
 float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
 
-	float voltage_uV = 989; //Special value for invalid GPIO_NUM
+	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
 	uint16_t buffer[2];
 	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
 	{
 
-	readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
-	readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[2]), 1, 0, FRMWRT_SGL_R);
+		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
+		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[2]), 1, 0, FRMWRT_SGL_R);
 
-	//raw_value = (int16_t)((hi << 8) | lo);
-	raw_value =((buffer[1] << 8) | buffer[2]);
-	voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
+		//raw_value = (int16_t)((hi << 8) | lo);
+		raw_value =((buffer[1] << 8) | buffer[2]);
+		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
 	}
 	return voltage_uV;
 }
@@ -254,14 +273,15 @@ int main(void)
 	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
 	HAL_Delay(10);
 
-	//Verifying ADC init
+	//Verifying ADC Init
 	readReg(1, BQ79616_ADC_CTRL1, &received_data1, 1, 0, FRMWRT_SGL_R);
 
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
 
 	//=============Define Tasks=================//
-	xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
+	//xTaskCreate((TaskFunction_t) StartDefaultTask, 	"defaultTask", 128 , NULL,(UBaseType_t) 0, &defaultTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "readVoltage", 1028, NULL,(UBaseType_t) 0, &BMS_DiagnosticHandle);
 
 	//=============Start the Scheduler================//
 	vTaskStartScheduler();
@@ -490,6 +510,22 @@ void StartDefaultTask(void const * argument)
 }
 
 
+void BMS_Diagnostic(void const * argument)
+{
+	final_value = test2();
+
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+	HAL_Delay(200);
+
+	for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+	{
+		gpio8_voltage = readGPIOVoltage(i, 8);
+		HAL_Delay(300);
+	}
+
+}
 
 
 /* USER CODE END 4 */

@@ -543,7 +543,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 int readReg(uint8_t bID, uint16_t wAddr, uint8_t* pData, uint8_t bLen, uint32_t dwTimeOut, uint8_t bWriteType) {
     int bRes = 0;
 
-    // Buffer to receive full frame (metadata + register data + CRC)
+   // Buffer to receive full frame (metadata + register data + CRC)
    // uint8_t fullBuffer[bLen + 6];  
     memset(fullBuffer, 0, sizeof(fullBuffer));
 
