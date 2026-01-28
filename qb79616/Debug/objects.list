@@ -1,3 +1,4 @@
+"./BMS_Tests/BMS_tests.o"
 "./Core/Src/bq79616_V2.o"
 "./Core/Src/main.o"
 "./Core/Src/stm32f1xx_hal_msp.o"
