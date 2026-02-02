@@ -37,7 +37,7 @@ float test2(){ //success!!!
 	// writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_ALL_W);
 	readBoardVoltages(1, activeCells, &totalV1, cellVoltages_board0);
 
-	HAL_Delay(100);
+	vTaskDelay(100);
 	readBoardVoltages(2, activeCells, &totalV2, cellVoltages_board1);
 	totalV=totalV1 + totalV2;
 	return ((totalV1 + totalV2)*0.00019073);

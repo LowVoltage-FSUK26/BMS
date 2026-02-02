@@ -22,6 +22,7 @@
 #include <string.h>
 #include "bq79616.h"          // BQ79616 definitions and macros
 #include "bq79600.h"
+#include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "task.h"
 // External UART handle (assumed to be defined and initialized in main.c)
