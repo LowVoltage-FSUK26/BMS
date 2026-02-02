@@ -26,9 +26,9 @@
 #include <stdio.h>
 #include "bq79616.h"
 #include "bq79600.h"
-#include "FreeRTOSConfig.h"
-#include "FreeRTOS.h"
-#include "task.h"
+//#include "FreeRTOSConfig.h"
+//#include "FreeRTOS.h"
+//#include "task.h"
 #include "BMS_tests.h"
 /* USER CODE END Includes */
 
@@ -76,8 +76,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 //Define Tasks Handler to hold task ID
-TaskHandle_t defaultTaskHandle;
-TaskHandle_t BmsTaskHandle;
+//TaskHandle_t defaultTaskHandle;
+//TaskHandle_t BmsTaskHandle;
 
 //Private user Variables
 uint8_t received_data1 = 0;
@@ -112,8 +112,8 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 //Declare Tasks Entery point
-void StartDefaultTask(void const * argument);
-void BMS_Init(void const * argument);
+//void StartDefaultTask(void const * argument);
+//void BMS_Init(void const * argument);
 
 /* Receive buffer (1 byte) */
 //uint8_t rx_byte[5];
@@ -269,10 +269,10 @@ int main(void)
 
 	//=============Define Tasks=================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "defaultTask", 128, NULL,(UBaseType_t) 0, &BmsTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_Init, "defaultTask", 128, NULL,(UBaseType_t) 0, &BmsTaskHandle);
 
 	//=============Start the Scheduler================//
-	vTaskStartScheduler();
+//	vTaskStartScheduler();
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
