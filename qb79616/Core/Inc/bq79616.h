@@ -40,6 +40,7 @@
 //delay function
 void DELAY_init(void);
 void DELAY_microseconds(uint16_t us);
+void TIM2_Delay_ms(uint32_t delay_ms);
 
 /* ------------------------------------
      1. ping functions
@@ -47,6 +48,7 @@ void DELAY_microseconds(uint16_t us);
 */
 //1. wake up ping
 void Wake79616(void);
+void Wake79600_RTOS(void);
 //2. shutdown ping
 void SD79616(void);
 //3. sleep to active ping

@@ -22,6 +22,8 @@
 #include <string.h>
 #include "bq79616.h"          // BQ79616 definitions and macros
 #include "bq79600.h"
+#include "FreeRTOS.h"
+#include "task.h"
 // External UART handle (assumed to be defined and initialized in main.c)
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2; //huart2 is used only for debugging
@@ -155,6 +157,34 @@ void Wake79600(void)
 
     //Needed Delay for UART of bridge to work
       HAL_Delay(3);
+}
+
+void Wake79600_RTOS(void)
+{
+	uint8_t received_data = 0;
+    HAL_UART_DeInit(&huart1);
+
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    __HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
+
+    // Configure PA9 (UART TX) as a push-pull output.
+    GPIO_InitStruct.Pin = GPIO_PIN_9;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
+
+
+    // Drive TX low
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+
+    vTaskDelay(2); // WAKE ping = 2.5ms to 3ms
+
+    // Reinitialize UART (this call should reconfigure PA9 to its alternate function)
+    HAL_UART_Init(&huart1);
+
+    //Needed Delay for UART of bridge to work
+    vTaskDelay(3);
 }
 
 void SD79616(void)
@@ -329,6 +359,8 @@ void Bridge_AutoAddress(void)
 
     return;
 }
+
+
 //Auto Addressing sequence for Ring Configuration
 void AutoAddress_Ring(void)
 {

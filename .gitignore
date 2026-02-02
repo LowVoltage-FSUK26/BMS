@@ -1,0 +1,19 @@
+# STM32 / CubeIDE build outputs
+Debug/
+Release/
+**/Debug/
+**/Release/
+
+# Object files
+*.o
+*.elf
+*.map
+*.list
+*.su
+*.cyclo
+*.d
+
+# IDE junk
+.settings/
+.project
+.cproject
