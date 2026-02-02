@@ -24,7 +24,17 @@ Core/Src/bq79616_V2.o: ../Core/Src/bq79616_V2.c \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h \
  ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h \
- ../Core/Inc/bq79616.h ../Core/Inc/bq79600.h
+ ../Core/Inc/bq79616.h ../Core/Inc/bq79600.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/FreeRTOS.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/Config/FreeRTOSConfig.h \
+ ../Core/Inc/main.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/projdefs.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/portable.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/deprecated_definitions.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/mpu_wrappers.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/task.h \
+ D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/list.h
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h:
 ../Core/Inc/stm32f1xx_hal_conf.h:
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h:
@@ -52,3 +62,13 @@ Core/Src/bq79616_V2.o: ../Core/Src/bq79616_V2.c \
 ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_uart.h:
 ../Core/Inc/bq79616.h:
 ../Core/Inc/bq79600.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/FreeRTOS.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/Config/FreeRTOSConfig.h:
+../Core/Inc/main.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/projdefs.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/portable.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/deprecated_definitions.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/portable/GCC/ARM_CM3/portmacro.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/mpu_wrappers.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/task.h:
+D:/Mina/Racing\ Team\ Tasks/2025-2026\ Season/BMS_GitHub_Repo/BMS/qb79616/FreeRTOS/FreeRTOS/Source/include/list.h:

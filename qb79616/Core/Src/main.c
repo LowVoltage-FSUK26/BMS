@@ -53,6 +53,7 @@ UART_HandleTypeDef huart2;
 
 //Define Tasks Handler to hold task ID
 TaskHandle_t defaultTaskHandle;
+TaskHandle_t BmsTaskHandle;
 
 uint8_t received_data1 = 0;
 uint8_t received_data2 = 0;
@@ -68,6 +69,7 @@ static void MX_TIM2_Init(void);
 
 //Declare Tasks Entery point
 void StartDefaultTask(void const * argument);
+void BMS_Init(void const * argument);
 
 /* Receive buffer (1 byte) */
 //uint8_t rx_byte[5];
@@ -101,6 +103,21 @@ void StartDefaultTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void TIM2_Delay_ms(uint32_t delay_ms)
+{
+    uint16_t start;
+    uint16_t delay_ticks = delay_ms * 1000U; // convert ms → µs
+
+    for(volatile int i=0; i<100; i++);
+    start = TIM2->CNT;
+
+    while ((uint16_t)(TIM2->CNT - start) < delay_ticks)
+    {
+        /* wait */
+    }
+}
+
 void test1(){ //success!!!
 	Wake79616();
 
@@ -257,7 +274,7 @@ extern volatile uint32_t ms_counter ;
 void enableTSREF(void) {
 	writeReg(1, BQ79616_CONTROL2, 0x01, 1,FRMWRT_SGL_W);
 	writeReg(2, BQ79616_CONTROL2, 0x01, 1,FRMWRT_SGL_W);
-	HAL_Delay(10); // Wait 1.35ms for TSREF to stabilize
+	vTaskDelay(10); // Wait 1.35ms for TSREF to stabilize
 }
 
 // Function to configure GPIO1 as ADC input
@@ -364,36 +381,12 @@ int main(void)
 	/* USER CODE BEGIN 2 */
 	//BareMetal code
 
-	HAL_TIM_Base_Start_IT(&htim2);
-
-	//=============================
-	//Initializing Daisy Chain Communication
-	//=============================
-
-	Wake79600();
-
-	Bridge_AutoAddress();
-
-	HAL_Delay(10);
-	enableTSREF();
-	configureGPIO8_ADC();
-
-	//=============================
-	//Initializing Daisy Chain ADCs
-	//=============================
-	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
-	HAL_Delay(10);
-	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
-	HAL_Delay(10);
-
-	//Verifying ADC init
-	readReg(1, BQ79616_ADC_CTRL1, &received_data1, 1, 0, FRMWRT_SGL_R);
-
-	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
+	HAL_TIM_Base_Start(&htim2);
 
 
 	//=============Define Tasks=================//
-	xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
+	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "defaultTask", 128, NULL,(UBaseType_t) 0, &BmsTaskHandle);
 
 	//=============Start the Scheduler================//
 	vTaskStartScheduler();
@@ -484,7 +477,7 @@ static void MX_TIM2_Init(void)
 	htim2.Instance = TIM2;
 	htim2.Init.Prescaler = 71;
 	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim2.Init.Period = 999;
+	htim2.Init.Period = 0xFFFF;
 	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -622,7 +615,34 @@ void StartDefaultTask(void const * argument)
 }
 
 
+void BMS_Init(void const * argument)
+{
+	//=============================
+	//Initializing Daisy Chain Communication
+	//=============================
 
+	Wake79600_RTOS();
+
+	Bridge_AutoAddress();
+
+	vTaskDelay(10);
+	enableTSREF();
+	configureGPIO8_ADC();
+
+	//=============================
+	//Initializing Daisy Chain ADCs
+	//=============================
+	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
+	vTaskDelay(10);
+	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
+	vTaskDelay(10);
+
+	//Verifying ADC init
+	readReg(1, BQ79616_ADC_CTRL1, &received_data1, 1, 0, FRMWRT_SGL_R);
+
+	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
+
+}
 
 /* USER CODE END 4 */
 
