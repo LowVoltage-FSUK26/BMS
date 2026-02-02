@@ -60,8 +60,8 @@ all: main-build
 main-build: qb79616.elf secondary-outputs
 
 # Tool invocations
-qb79616.elf qb79616.map: $(OBJS) $(USER_OBJS) F:\MOHAMMED\ ESSAM\Low\ Voltage\ S2\BMS\qb79616_projects\qb79616\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "qb79616.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"F:\MOHAMMED ESSAM\Low Voltage S2\BMS\qb79616_projects\qb79616\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="qb79616.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+qb79616.elf qb79616.map: $(OBJS) $(USER_OBJS) D:\Mina\Racing\ Team\ Tasks\2025-2026\ Season\BMS_GitHub_Repo\BMS\qb79616\STM32F103C8TX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "qb79616.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"D:\Mina\Racing Team Tasks\2025-2026 Season\BMS_GitHub_Repo\BMS\qb79616\STM32F103C8TX_FLASH.ld" --specs=nosys.specs -Wl,-Map="qb79616.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
