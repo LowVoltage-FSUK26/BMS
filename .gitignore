@@ -2,17 +2,19 @@
 # STM32CubeIDE / Eclipse
 ############################################
 .metadata/
-.settings/
+qb79616/.settings/
 *.launch
 *.log
 
 ############################################
 # Build outputs
 ############################################
-Debug/
-Release/
-Binaries/
-build/
+qb79616/Debug/
+bq79600/BQ79600_UART_Sample_Code/Debug
+qb79616/Release/
+bq79600/BQ79600_UART_Sample_Code/Release/
+qb79616/Binaries/
+qb79616/build/
 
 ############################################
 # Compiled files
