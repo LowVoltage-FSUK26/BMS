@@ -9,6 +9,6 @@
 ../Core/Src/main.c:423:13:MX_USART2_UART_Init	2
 ../Core/Src/main.c:456:13:MX_GPIO_Init	1
 ../Core/Src/main.c:483:6:StartDefaultTask	1
-../Core/Src/main.c:499:6:BMS_Diagnostic	2
-../Core/Src/main.c:520:6:BMS_Init	1
-../Core/Src/main.c:557:6:Error_Handler	1
+../Core/Src/main.c:499:6:BMS_Diagnostic	3
+../Core/Src/main.c:524:6:BMS_Init	1
+../Core/Src/main.c:563:6:Error_Handler	1

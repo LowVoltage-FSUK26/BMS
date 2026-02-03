@@ -211,6 +211,7 @@ static void prvTaskExitError( void )
 
     while( ulDummy == 0 )
     {
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, GPIO_PIN_SET);
         /* This file calls prvTaskExitError() after the scheduler has been
          * started to remove a compiler warning about the function being defined
          * but never called.  ulDummy is used purely to quieten other warnings

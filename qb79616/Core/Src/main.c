@@ -265,7 +265,7 @@ int main(void)
 
 	//=============Define Tasks=================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);
 
 
@@ -277,18 +277,18 @@ int main(void)
 	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		HAL_Delay(10);
-		final_value = test2();
-
-
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		HAL_Delay(200);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		HAL_Delay(200);
-
-		gpio8_voltage = readGPIOVoltage(1, 8);
-		HAL_Delay(1000);
-		gpio8_voltage = readGPIOVoltage(2, 8);
+//		HAL_Delay(10);
+//		final_value = test2();
+//
+//
+//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+//		HAL_Delay(200);
+//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+//		HAL_Delay(200);
+//
+//		gpio8_voltage = readGPIOVoltage(1, 8);
+//		HAL_Delay(1000);
+//		gpio8_voltage = readGPIOVoltage(2, 8);
 
 
 		/* USER CODE END WHILE */
@@ -498,21 +498,25 @@ void StartDefaultTask(void const * argument)
 
 void BMS_Diagnostic(void const * argument)
 {
-	while(1){
+	while(BMS_Init_Done == 0){
 
+	}
+
+	for(;;)
+	{
 		final_value = test2();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		vTaskDelay(200);
+		vTaskDelay(100);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		vTaskDelay(200);
+		vTaskDelay(100);
 
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
 			gpio8_voltage = readGPIOVoltage(i, 8);
-			vTaskDelay(300);
+			vTaskDelay(50);
 		}
-		vTaskDelay(500);
+		vTaskDelay(50);
 	}
 
 
@@ -544,7 +548,9 @@ void BMS_Init(void const * argument)
 
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
+
 	BMS_Init_Done = 1;
+	vTaskDelete(NULL);
 
 }
 
