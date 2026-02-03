@@ -1,4 +1,0 @@
-../BMS_Tests/BMS_tests.c:20:6:test1	8	static
-../BMS_Tests/BMS_tests.c:32:7:test2	24	static
-../BMS_Tests/BMS_tests.c:49:6:test3	16	static
-../BMS_Tests/BMS_tests.c:68:10:test4	48	static
