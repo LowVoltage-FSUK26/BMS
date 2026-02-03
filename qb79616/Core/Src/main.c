@@ -59,6 +59,11 @@
 #define DIETEMP1_LO_REG DIETEMP1_LO  // Low byte register of Die Temperature
 #define VLSB_MAIN_DIETEMP1 0.0078125 // LSB value in °C
 
+//---------------------
+//RTOS MACROS
+//--------------------
+#define NOTIFY_BMS_INIT_DONE   (1U << 0)
+
 
 /* USER CODE END PD */
 
@@ -81,7 +86,6 @@ TaskHandle_t BMS_DiagnosticHandle;
 TaskHandle_t BmsTaskHandle;
 
 //Private user Variables
-uint8_t BMS_Init_Done = 0;
 uint8_t received_data1 = 0;
 uint8_t received_data2 = 0;
 uint8_t Buffer[5];
@@ -498,10 +502,7 @@ void StartDefaultTask(void const * argument)
 
 void BMS_Diagnostic(void const * argument)
 {
-	while(BMS_Init_Done == 0){
-
-	}
-
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
 	for(;;)
 	{
 		final_value = test2();
@@ -549,7 +550,7 @@ void BMS_Init(void const * argument)
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
 
-	BMS_Init_Done = 1;
+	xTaskNotify(BMS_DiagnosticHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
 	vTaskDelete(NULL);
 
 }
