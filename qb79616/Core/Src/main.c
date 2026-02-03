@@ -76,7 +76,7 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 
 //Define Tasks Handler to hold task ID
-TaskHandle_t defaultTaskHandle;
+//TaskHandle_t defaultTaskHandle;
 TaskHandle_t BMS_DiagnosticHandle;
 TaskHandle_t BmsTaskHandle;
 
@@ -114,7 +114,7 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 //Declare Tasks Entery point
-void StartDefaultTask(void const * argument);
+//void StartDefaultTask(void const * argument);
 void BMS_Diagnostic(void const * argument);
 void BMS_Init(void const * argument);
 
@@ -265,8 +265,8 @@ int main(void)
 
 	//=============Define Tasks=================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "defaultTask", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "defaultTask", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);
+//	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);
 
 
 	//=============Start the Scheduler================//
@@ -498,7 +498,7 @@ void StartDefaultTask(void const * argument)
 
 void BMS_Diagnostic(void const * argument)
 {
-	while(BMS_Init_Done){
+	while(1){
 
 		final_value = test2();
 
