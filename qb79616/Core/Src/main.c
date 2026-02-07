@@ -91,7 +91,6 @@ uint8_t received_data1 = 0;
 uint8_t received_data2 = 0;
 uint8_t Buffer[5];
 
-int totalV = 0;
 float final_value = 0;
 int cellVoltages_board0[16] = {0};
 int cellVoltages_board1[16] = {0};
@@ -105,6 +104,7 @@ float tsref_voltage = 0; // Example: 5V in μV
 float rntc=2.56;
 
 extern volatile uint32_t ms_counter ;
+extern int cellVoltages_board[SLAVEBOARDS][16];
 
 
 

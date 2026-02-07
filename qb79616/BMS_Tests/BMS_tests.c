@@ -10,14 +10,13 @@
 #include "BMS_Config.h"
 #include "bq79616.h"
 #include "bq79600.h"
+#include "FreeRTOS.h"
+#include "FreeRTOSConfig.h"
+#include "task.h"
 
-
-
-extern int totalV;
-extern float final_value;
-extern int cellVoltages_board0[16];
-extern int cellVoltages_board1[16];
 extern UART_HandleTypeDef huart2;
+
+int cellVoltages_board[SLAVEBOARDS][16] = {0};
 
 void test1(){ //success!!!
 	Wake79616();
@@ -38,9 +37,10 @@ float test2(){
 
 	uint8_t activeCells = 16;
 
+
 	for(uint8_t i = 1; i <= SLAVEBOARDS; i++ )
 	{
-		readBoardVoltages(i, activeCells, (uint8_t*)&slave_totalV[i], cellVoltages_board0);
+		readBoardVoltages(i, activeCells, (int *)&slave_totalV[i], (int *)&cellVoltages_board[i]);
 		totalV += slave_totalV[i];
 		vTaskDelay(100);		//Check for the minimum delay that can be achieved
 	}
