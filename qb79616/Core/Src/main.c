@@ -24,12 +24,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "bq79616.h"
-#include "bq79600.h"
 #include "BMS_Config.h"
-#include "FreeRTOSConfig.h"
-#include "FreeRTOS.h"
-#include "task.h"
 #include "BMS_tests.h"
 /* USER CODE END Includes */
 
@@ -94,6 +89,7 @@ uint8_t Buffer[5];
 float final_value = 0;
 int cellVoltages_board0[16] = {0};
 int cellVoltages_board1[16] = {0};
+extern int cellVoltages_board[SLAVEBOARDS][16];
 
 int16_t raw_value;
 uint8_t hi, lo;
@@ -104,7 +100,7 @@ float tsref_voltage = 0; // Example: 5V in μV
 float rntc=2.56;
 
 extern volatile uint32_t ms_counter ;
-extern int cellVoltages_board[SLAVEBOARDS][16];
+
 
 
 

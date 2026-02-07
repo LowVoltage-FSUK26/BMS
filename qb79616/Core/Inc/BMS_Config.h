@@ -8,6 +8,18 @@
 #ifndef INC_BMS_CONFIG_H_
 #define INC_BMS_CONFIG_H_
 
+
+/* ------------------------------------
+     BMS Utilized Libraries
+   ------------------------------------
+*/
+#include "bq79600.h"	// BQ79600 definitions and macros
+#include "bq79616.h"	// BQ79616 definitions and macros
+#include "FreeRTOS.h"
+#include "FreeRTOSConfig.h"
+#include "task.h"
+
+
 /* ------------------------------------
      BMS Configuration MACROS
    ------------------------------------
@@ -27,7 +39,7 @@ typedef enum {
 
 typedef struct {
     BMS_Command_t cmd;
-    //TaskHandle_t  requester;   // who asked (for notification)
+    TaskHandle_t  requester;   // who asked (for notification)
 } BMS_Request_t;
 
 
