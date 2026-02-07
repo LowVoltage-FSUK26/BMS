@@ -135,11 +135,6 @@ void BMS_Diagnostic(void const * argument);
 void BMS_Init(void const * argument);
 
 
-//@Future Improvement
-/*
- * // only task accessing UART, has queue of a stuct that holds a request (cmd type and task handle)
- * 		 from cell volatage and temp task then notifies them when their response is available
- */
 void BMS_CommsTask(void const * argument);
 
 //Sends a read voltage cmd to BMS queue to read cell voltages
@@ -147,6 +142,8 @@ void BMS_CellVoltageTask(void const * argument);
 
 //Sends a read voltage cmd to BMS queue to read cell temp
 void BMS_ReadTempTask(void const * argument);
+
+//todo Can Task
 
 
 /* Receive buffer (1 byte) */
