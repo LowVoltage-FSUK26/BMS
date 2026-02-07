@@ -59,6 +59,7 @@
 
 //FUNCTION PROTOTYPES
 void Wake79600(void);
+void Wake79600_RTOS(void);
 void SD79600(void);
 void StA79600(void);
 void Bridge_AutoAddress(void);

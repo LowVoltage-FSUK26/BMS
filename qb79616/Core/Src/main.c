@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include "bq79616.h"
 #include "bq79600.h"
+#include "BMS_Config.h"
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "task.h"
@@ -261,13 +262,14 @@ int main(void)
 	MX_USART2_UART_Init();
 	MX_TIM2_Init();
 	/* USER CODE BEGIN 2 */
-	//BareMetal code
 
-	BMS_Init_Done = 0;
 	HAL_TIM_Base_Start(&htim2);
 
 
-	//=============Define Tasks=================//
+	//==================Define Queues===================//
+
+
+	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);

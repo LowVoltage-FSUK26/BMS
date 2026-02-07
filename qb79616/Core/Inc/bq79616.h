@@ -5,8 +5,6 @@
      User defined parameters
    ------------------------------------
 */
-#define TOTALBOARDS 3       //boards in stack
-#define SLAVEBOARDS	(TOTALBOARDS - 1)
 #define MAXBYTES (16*2)     //maximum number of bytes to be read from the devices (for array creation)
 #define BAUDRATE 1000000    //device + uC baudrate
 
@@ -48,7 +46,6 @@ void TIM2_Delay_ms(uint32_t delay_ms);
 */
 //1. wake up ping
 void Wake79616(void);
-void Wake79600_RTOS(void);
 //2. shutdown ping
 void SD79616(void);
 //3. sleep to active ping

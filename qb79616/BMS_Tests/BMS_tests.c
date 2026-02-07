@@ -7,8 +7,10 @@
 
 #include "main.h"
 #include "BMS_tests.h"
+#include "BMS_Config.h"
 #include "bq79616.h"
 #include "bq79600.h"
+
 
 
 extern int totalV;
