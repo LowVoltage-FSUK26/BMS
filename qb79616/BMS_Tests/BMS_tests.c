@@ -29,19 +29,22 @@ void test1(){ //success!!!
 
 /** Test Case 2: Voltage Reading **/
 
-float test2(){ //success!!!
-	int totalV1 = 0;
-	int totalV2 = 0;
+float test2(){
+
+	int slave_totalV[SLAVEBOARDS] = {0};
+	int totalV = 0;
 
 	uint8_t activeCells = 16;
-	// writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_ALL_W);
-	readBoardVoltages(1, activeCells, &totalV1, cellVoltages_board0);
 
-	vTaskDelay(100);
-	readBoardVoltages(2, activeCells, &totalV2, cellVoltages_board1);
-	totalV=totalV1 + totalV2;
-	return ((totalV1 + totalV2)*0.00019073);
-	/** If this works modify to read more than one board **/
+	for(uint8_t i = 1; i <= SLAVEBOARDS; i++ )
+	{
+		readBoardVoltages(i, activeCells, (uint8_t*)&slave_totalV[i], cellVoltages_board0);
+		totalV += slave_totalV[i];
+		vTaskDelay(100);		//Check for the minimum delay that can be achieved
+	}
+
+	return (totalV * 0.00019073);
+
 }
 
 
