@@ -24,8 +24,9 @@
      BMS Configuration MACROS
    ------------------------------------
 */
-#define TOTALBOARDS 3       //boards in stack
+#define TOTALBOARDS 3       //boards in stack (including the bridge)
 #define SLAVEBOARDS	(TOTALBOARDS - 1)
+#define ADVANCETASK
 
 
 /* ------------------------------------
@@ -40,6 +41,8 @@ typedef enum {
 typedef struct {
     BMS_Command_t cmd;
     TaskHandle_t  requester;   // who asked (for notification)
+    uint8_t GPIO_NUM;
+    uint8_t BOARD_NUM;
 } BMS_Request_t;
 
 
