@@ -24,11 +24,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "bq79616.h"
-#include "bq79600.h"
-#include "FreeRTOSConfig.h"
-#include "FreeRTOS.h"
-#include "task.h"
+#include "BMS_Config.h"
 #include "BMS_tests.h"
 /* USER CODE END Includes */
 
@@ -90,10 +86,10 @@ uint8_t received_data1 = 0;
 uint8_t received_data2 = 0;
 uint8_t Buffer[5];
 
-int totalV = 0;
 float final_value = 0;
 int cellVoltages_board0[16] = {0};
 int cellVoltages_board1[16] = {0};
+extern int cellVoltages_board[SLAVEBOARDS][16];
 
 int16_t raw_value;
 uint8_t hi, lo;
@@ -104,6 +100,7 @@ float tsref_voltage = 0; // Example: 5V in μV
 float rntc=2.56;
 
 extern volatile uint32_t ms_counter ;
+
 
 
 
@@ -215,8 +212,8 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
 	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
 	{
 
-		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
-		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[2]), 1, 0, FRMWRT_SGL_R);
+		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R);
+		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
 
 		//raw_value = (int16_t)((hi << 8) | lo);
 		raw_value =((buffer[1] << 8) | buffer[2]);
@@ -261,12 +258,14 @@ int main(void)
 	MX_USART2_UART_Init();
 	MX_TIM2_Init();
 	/* USER CODE BEGIN 2 */
-	//BareMetal code
 
 	HAL_TIM_Base_Start(&htim2);
 
 
-	//=============Define Tasks=================//
+	//==================Define Queues===================//
+
+
+	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);

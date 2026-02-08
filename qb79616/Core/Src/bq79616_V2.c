@@ -20,11 +20,10 @@
 
 #include "stm32f1xx_hal.h"    
 #include <string.h>
-#include "bq79616.h"          // BQ79616 definitions and macros
-#include "bq79600.h"
-#include "FreeRTOSConfig.h"
-#include "FreeRTOS.h"
-#include "task.h"
+#include "BMS_Config.h"
+
+
+
 // External UART handle (assumed to be defined and initialized in main.c)
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2; //huart2 is used only for debugging

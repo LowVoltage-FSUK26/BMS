@@ -7,15 +7,16 @@
 
 #include "main.h"
 #include "BMS_tests.h"
+#include "BMS_Config.h"
 #include "bq79616.h"
 #include "bq79600.h"
+#include "FreeRTOS.h"
+#include "FreeRTOSConfig.h"
+#include "task.h"
 
-
-extern int totalV;
-extern float final_value;
-extern int cellVoltages_board0[16];
-extern int cellVoltages_board1[16];
 extern UART_HandleTypeDef huart2;
+
+int cellVoltages_board[SLAVEBOARDS][16] = {0};
 
 void test1(){ //success!!!
 	Wake79616();
@@ -29,19 +30,23 @@ void test1(){ //success!!!
 
 /** Test Case 2: Voltage Reading **/
 
-float test2(){ //success!!!
-	int totalV1 = 0;
-	int totalV2 = 0;
+float test2(){
+
+	int slave_totalV[SLAVEBOARDS] = {0};
+	int totalV = 0;
 
 	uint8_t activeCells = 16;
-	// writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_ALL_W);
-	readBoardVoltages(1, activeCells, &totalV1, cellVoltages_board0);
 
-	vTaskDelay(100);
-	readBoardVoltages(2, activeCells, &totalV2, cellVoltages_board1);
-	totalV=totalV1 + totalV2;
-	return ((totalV1 + totalV2)*0.00019073);
-	/** If this works modify to read more than one board **/
+
+	for(uint8_t i = 1; i <= SLAVEBOARDS; i++ )
+	{
+		readBoardVoltages(i, activeCells, &slave_totalV[i - 1], cellVoltages_board[i - 1]);
+		totalV += slave_totalV[i];
+		vTaskDelay(pdMS_TO_TICKS(100));		//Check for the minimum delay that can be achieved
+	}
+
+	return (totalV * 0.00019073);
+
 }
 
 
