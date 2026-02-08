@@ -40,7 +40,7 @@ float test2(){
 
 	for(uint8_t i = 1; i <= SLAVEBOARDS; i++ )
 	{
-		readBoardVoltages(i, activeCells, &slave_totalV[i], cellVoltages_board[i]);
+		readBoardVoltages(i, activeCells, &slave_totalV[i - 1], cellVoltages_board[i - 1]);
 		totalV += slave_totalV[i];
 		vTaskDelay(pdMS_TO_TICKS(100));		//Check for the minimum delay that can be achieved
 	}
