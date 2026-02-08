@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include "BMS_Config.h"
 #include "BMS_tests.h"
+#include "queue.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,7 +59,9 @@
 //---------------------
 //RTOS MACROS
 //--------------------
-#define NOTIFY_BMS_INIT_DONE   (1U << 0)
+#define NOTIFY_BMS_INIT_DONE   	(1U << 0)
+#define NOTIFY_BMS_GOT_MSG		(1U << 1)
+
 
 
 /* USER CODE END PD */
@@ -75,11 +78,23 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+//-----------------------------------------
 //Define Tasks Handler to hold task ID
+//-----------------------------------------
 //TaskHandle_t defaultTaskHandle;
 TaskHandle_t BMS_DiagnosticHandle;
 TaskHandle_t BmsTaskHandle;
+
+TaskHandle_t BmsCommsTaskHandle;
+TaskHandle_t BmsCellVoltageTaskHandle;
+TaskHandle_t BmsReadTempTaskHandle;
+
+//RTOS Queues
+QueueHandle_t bmsCmdQueue;
+//todo Simplify Volt and Temp to One Queue
+QueueHandle_t bmsVoltageQueue;
+QueueHandle_t bmsTempQueue;
+
 
 //Private user Variables
 uint8_t received_data1 = 0;
@@ -87,8 +102,8 @@ uint8_t received_data2 = 0;
 uint8_t Buffer[5];
 
 float final_value = 0;
-int cellVoltages_board0[16] = {0};
-int cellVoltages_board1[16] = {0};
+//int cellVoltages_board0[16] = {0};
+//int cellVoltages_board1[16] = {0};
 extern int cellVoltages_board[SLAVEBOARDS][16];
 
 int16_t raw_value;
@@ -120,20 +135,15 @@ void BMS_Diagnostic(void const * argument);
 void BMS_Init(void const * argument);
 
 
-//@Future Improvement
-/*
- * // only task accessing UART, has queue of a stuct that holds a request (cmd type and task handle)
- * 		 from cell volatage and temp task then notifies them when their response is available
- * void BMS_CommsTask(void const * argument);
- *
- *	//Sends a read voltage cmd to BMS queue to read cell voltages
- * void CellVoltageTask(void const * argument);
- *
- * //Sends a read voltage cmd to BMS queue to read cell temp
- * void BMS_ReadTemp(void const * argument);
- *
- *
- */
+void BMS_CommsTask(void const * argument);
+
+//Sends a read voltage cmd to BMS queue to read cell voltages
+void BMS_CellVoltageTask(void const * argument);
+
+//Sends a read voltage cmd to BMS queue to read cell temp
+void BMS_ReadTempTask(void const * argument);
+
+//todo Can Task
 
 
 /* Receive buffer (1 byte) */
@@ -263,12 +273,20 @@ int main(void)
 
 
 	//==================Define Queues===================//
-
+	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
+	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
+	bmsTempQueue = xQueueCreate(3, sizeof(float));
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
+#ifdef ADVANCETASK
+	xTaskCreate((TaskFunction_t) BMS_CommsTask, "BMS_Comms_Task", 256, NULL,(UBaseType_t) 9, &BmsCommsTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 5, &BmsReadTempTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 5, &BmsCellVoltageTaskHandle);
+#else
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);
+#endif
 
 
 	//=============Start the Scheduler================//
@@ -279,18 +297,18 @@ int main(void)
 	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
-//		HAL_Delay(10);
-//		final_value = test2();
-//
-//
-//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-//		HAL_Delay(200);
-//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-//		HAL_Delay(200);
-//
-//		gpio8_voltage = readGPIOVoltage(1, 8);
-//		HAL_Delay(1000);
-//		gpio8_voltage = readGPIOVoltage(2, 8);
+		//		HAL_Delay(10);
+		//		final_value = test2();
+		//
+		//
+		//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+		//		HAL_Delay(200);
+		//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+		//		HAL_Delay(200);
+		//
+		//		gpio8_voltage = readGPIOVoltage(1, 8);
+		//		HAL_Delay(1000);
+		//		gpio8_voltage = readGPIOVoltage(2, 8);
 
 
 		/* USER CODE END WHILE */
@@ -497,29 +515,6 @@ void StartDefaultTask(void const * argument)
 	/* USER CODE END 5 */
 }
 
-
-void BMS_Diagnostic(void const * argument)
-{
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
-	for(;;)
-	{
-		final_value = test2();
-
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		vTaskDelay(100);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		vTaskDelay(100);
-
-		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
-		{
-			gpio8_voltage = readGPIOVoltage(i, 8);
-			vTaskDelay(50);
-		}
-		vTaskDelay(50);
-	}
-
-
-}
 void BMS_Init(void const * argument)
 {
 	//=============================
@@ -547,11 +542,128 @@ void BMS_Init(void const * argument)
 
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
-
+#ifdef ADVANCETASK
+	xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+	xTaskNotify(BmsCommsTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+	xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+#else
 	xTaskNotify(BMS_DiagnosticHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+#endif
 	vTaskDelete(NULL);
 
 }
+
+void BMS_Diagnostic(void const * argument)
+{
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	for(;;)
+	{
+		final_value = test2();
+
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+		vTaskDelay(100);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+		vTaskDelay(100);
+
+		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+		{
+			gpio8_voltage = readGPIOVoltage(i, 8);
+			vTaskDelay(50);
+		}
+		vTaskDelay(50);
+	}
+
+
+}
+
+void BMS_CommsTask(void const * argument)
+{
+	BMS_Request_t req;
+	float buffer = 0;
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	for(;;)
+	{
+		if(xQueueReceive(bmsCmdQueue, &req, portMAX_DELAY) == pdTRUE)
+		{
+			switch(req.cmd)
+			{
+				case CMD_READ_CELL_VOLTAGES:
+					buffer = test2();
+					xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+					break;
+
+				case CMD_READ_GPIO_ADC:
+					//todo make it read all the boards temps
+					buffer = readGPIOVoltage(req.BOARD_NUM, req.GPIO_NUM);
+					xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+					break;
+			}
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+			vTaskDelay(100);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+			vTaskDelay(100);
+
+			xTaskNotify(req.requester, NOTIFY_BMS_GOT_MSG, eSetBits);
+		}
+	}
+}
+
+//Sends a read voltage cmd to BMS queue to read cell voltages
+void BMS_CellVoltageTask(void const * argument)
+{
+	BMS_Request_t req;
+
+	req.cmd = CMD_READ_CELL_VOLTAGES;
+	req.requester = xTaskGetCurrentTaskHandle();
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	for(;;)
+	{
+		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
+		//wait 100ms for MSG to arrive
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
+
+		if(xQueueReceive(bmsVoltageQueue, &final_value, (TickType_t)10) == pdTRUE)
+		{
+			//process Voltage reading
+		}
+		else
+		{
+			//indicate message is not received
+		}
+		vTaskDelay(pdMS_TO_TICKS(50));
+	}
+
+}
+
+//Sends a read voltage cmd to BMS queue to read cell temp
+void BMS_ReadTempTask(void const * argument)
+{
+	BMS_Request_t req;
+
+	req.cmd = CMD_READ_GPIO_ADC;
+	req.requester = xTaskGetCurrentTaskHandle();
+	//todo make it GPIO_generic
+	req.BOARD_NUM = 1;
+	req.GPIO_NUM = 8;
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	for(;;)
+	{
+		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
+		//wait 100ms for MSG to arrive
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
+
+		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
+		{
+			//process Voltage reading
+		}
+		else
+		{
+			//indicate message is not received
+		}
+		vTaskDelay(pdMS_TO_TICKS(50));
+	}
+}
+
 
 /* USER CODE END 4 */
 
