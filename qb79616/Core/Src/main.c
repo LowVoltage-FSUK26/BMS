@@ -263,7 +263,6 @@ int main(void)
 	/* USER CODE BEGIN 2 */
 	//BareMetal code
 
-	BMS_Init_Done = 0;
 	HAL_TIM_Base_Start(&htim2);
 
 
