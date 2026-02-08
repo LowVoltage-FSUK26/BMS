@@ -27,20 +27,20 @@ void test1(){ //success!!!
 
 }
 
-
+int totalV = 0;
 /** Test Case 2: Voltage Reading **/
 
 float test2(){
 
 	int slave_totalV[SLAVEBOARDS] = {0};
-	int totalV = 0;
+	totalV = 0;
 
 	uint8_t activeCells = 16;
 
 
 	for(uint8_t i = 1; i <= SLAVEBOARDS; i++ )
 	{
-		readBoardVoltages(i, activeCells, &slave_totalV[i], cellVoltages_board[i]);
+		readBoardVoltages(i, activeCells, &slave_totalV[i - 1], cellVoltages_board[i - 1]);
 		totalV += slave_totalV[i];
 		vTaskDelay(pdMS_TO_TICKS(100));		//Check for the minimum delay that can be achieved
 	}

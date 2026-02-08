@@ -598,6 +598,11 @@ void BMS_CommsTask(void const * argument)
 					xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
 					break;
 			}
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+			vTaskDelay(100);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+			vTaskDelay(100);
+
 			xTaskNotify(req.requester, NOTIFY_BMS_GOT_MSG, eSetBits);
 		}
 	}
@@ -635,28 +640,28 @@ void BMS_ReadTempTask(void const * argument)
 {
 	BMS_Request_t req;
 
-		req.cmd = CMD_READ_GPIO_ADC;
-		req.requester = xTaskGetCurrentTaskHandle();
-		//todo make it GPIO_generic
-		req.BOARD_NUM = 1;
-		req.GPIO_NUM = 8;
-		xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
-		for(;;)
-		{
-			xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-			//wait 100ms for MSG to arrive
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
+	req.cmd = CMD_READ_GPIO_ADC;
+	req.requester = xTaskGetCurrentTaskHandle();
+	//todo make it GPIO_generic
+	req.BOARD_NUM = 1;
+	req.GPIO_NUM = 8;
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	for(;;)
+	{
+		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
+		//wait 100ms for MSG to arrive
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
 
-			if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
-			{
-				//process Voltage reading
-			}
-			else
-			{
-				//indicate message is not received
-			}
-			vTaskDelay(pdMS_TO_TICKS(50));
+		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
+		{
+			//process Voltage reading
 		}
+		else
+		{
+			//indicate message is not received
+		}
+		vTaskDelay(pdMS_TO_TICKS(50));
+	}
 }
 
 
