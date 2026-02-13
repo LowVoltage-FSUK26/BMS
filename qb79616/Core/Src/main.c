@@ -131,18 +131,18 @@ static void MX_TIM2_Init(void);
 
 //Declare Tasks Entery point
 //void StartDefaultTask(void const * argument);
-void BMS_Diagnostic(void const * argument);
+
+#ifdef ADVANCETASK
 void BMS_Init(void const * argument);
 
-
 void BMS_CommsTask(void const * argument);
-
 //Sends a read voltage cmd to BMS queue to read cell voltages
 void BMS_CellVoltageTask(void const * argument);
-
 //Sends a read voltage cmd to BMS queue to read cell temp
 void BMS_ReadTempTask(void const * argument);
-
+#else
+void BMS_Diagnostic(void const * argument);
+#endif
 //todo Can Task
 
 
