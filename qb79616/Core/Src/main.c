@@ -27,6 +27,8 @@
 #include "BMS_Config.h"
 #include "BMS_tests.h"
 #include "queue.h"
+#include "semphr.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -82,19 +84,47 @@ UART_HandleTypeDef huart2;
 //Define Tasks Handler to hold task ID
 //-----------------------------------------
 //TaskHandle_t defaultTaskHandle;
-TaskHandle_t BMS_DiagnosticHandle;
-TaskHandle_t BmsTaskHandle;
 
-TaskHandle_t BmsCommsTaskHandle;
+TaskHandle_t BmsInitTaskHandle;
+
+#ifdef SIMPLETASK
+
+TaskHandle_t BMS_DiagnosticHandle;
+
+#else
+
 TaskHandle_t BmsCellVoltageTaskHandle;
 TaskHandle_t BmsReadTempTaskHandle;
 
+#ifdef ADVANCEDTASK
+
+TaskHandle_t BmsCommsTaskHandle;
+
+#elif defined(NEW_RTOS)
+
+TaskHandle_t BmsMonitorTaskHandle;
+TaskHandle_t BmsCommandTaskHandle;
+
+#endif
+#endif
+
+//----------------
 //RTOS Queues
+//----------------
+//#ifdef ADVACNEDTASK
 QueueHandle_t bmsCmdQueue;
+//#else
 //todo Simplify Volt and Temp to One Queue
 QueueHandle_t bmsVoltageQueue;
 QueueHandle_t bmsTempQueue;
+//#endif
 
+//----------------
+//RTOS MUTEX
+//----------------
+#ifdef NEW_RTOS
+SemaphoreHandle_t UART_MUTEX;
+#endif
 
 //Private user Variables
 uint8_t received_data1 = 0;
@@ -102,8 +132,6 @@ uint8_t received_data2 = 0;
 uint8_t Buffer[5];
 
 float final_value = 0;
-//int cellVoltages_board0[16] = {0};
-//int cellVoltages_board1[16] = {0};
 extern int cellVoltages_board[SLAVEBOARDS][16];
 
 int16_t raw_value;
@@ -132,16 +160,29 @@ static void MX_TIM2_Init(void);
 //Declare Tasks Entery point
 //void StartDefaultTask(void const * argument);
 
-#ifdef ADVANCETASK
 void BMS_Init(void const * argument);
 
+#ifdef SIMPLETASK
+
+void BMS_Diagnostic(void const * argument);
+
+#else
+#ifdef ADVANCETASK
+
 void BMS_CommsTask(void const * argument);
+
+#elif defined(NEW_RTOS)
+//A Task that periodically pull Cell voltage and Temperature reading
+void BMS_MonitorTask(void const * argument);
+//Receives Command in a Queue and Sends Commands to Daisy chains on demand
+void BMS_CommadTask(void const * argument);
+#endif
+
 //Sends a read voltage cmd to BMS queue to read cell voltages
 void BMS_CellVoltageTask(void const * argument);
 //Sends a read voltage cmd to BMS queue to read cell temp
 void BMS_ReadTempTask(void const * argument);
-#else
-void BMS_Diagnostic(void const * argument);
+
 #endif
 //todo Can Task
 
@@ -273,18 +314,29 @@ int main(void)
 
 
 	//==================Define Queues===================//
+#ifdef ADVACNEDTASK
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
+#else
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
+#endif
+
+	//==================Define MUTEX===================//
+#ifdef NEW_RTOS
+	UART_MUTEX = xSemaphoreCreateMutex();
+#endif
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
-#ifdef ADVANCETASK
-	xTaskCreate((TaskFunction_t) BMS_CommsTask, "BMS_Comms_Task", 256, NULL,(UBaseType_t) 9, &BmsCommsTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 5, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 5, &BmsCellVoltageTaskHandle);
-#else
+#ifdef NEW_RTOS
+	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 256, NULL,(UBaseType_t) 9, &BmsMonitorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 9, &BmsCommandTaskHandle);
+#elif defined(ADVANCETASK)
+	xTaskCreate((TaskFunction_t) BMS_CommsTask, "BMS_Comms_Task", 256, NULL,(UBaseType_t) 9, &BmsCommsTaskHandle);
+#elif defined(SIMPLETASK)
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);
 #endif
 
@@ -563,12 +615,18 @@ void BMS_Init(void const * argument)
 
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
-#ifdef ADVANCETASK
-	xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-	xTaskNotify(BmsCommsTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-	xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-#else
+#ifdef SIMPLETASK
 	xTaskNotify(BMS_DiagnosticHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+#else
+	xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+	xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+#ifdef ADVANCETASK
+	xTaskNotify(BmsCommsTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+#elif defined(NEW_RTOS)
+	xTaskNotify(BmsMonitorTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+	xTaskNotify(BmsCommandTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+#endif
+
 #endif
 	vTaskDelete(NULL);
 
@@ -608,16 +666,16 @@ void BMS_CommsTask(void const * argument)
 		{
 			switch(req.cmd)
 			{
-				case CMD_READ_CELL_VOLTAGES:
-					buffer = test2();
-					xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-					break;
+			case CMD_READ_CELL_VOLTAGES:
+				buffer = test2();
+				xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+				break;
 
-				case CMD_READ_GPIO_ADC:
-					//todo make it read all the boards temps
-					buffer = readGPIOVoltage(req.BOARD_NUM, req.GPIO_NUM);
-					xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-					break;
+			case CMD_READ_GPIO_ADC:
+				//todo make it read all the boards temps
+				buffer = readGPIOVoltage(req.BOARD_NUM, req.GPIO_NUM);
+				xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+				break;
 			}
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 			vTaskDelay(100);
@@ -632,13 +690,15 @@ void BMS_CommsTask(void const * argument)
 //Sends a read voltage cmd to BMS queue to read cell voltages
 void BMS_CellVoltageTask(void const * argument)
 {
-	BMS_Request_t req;
 
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+#ifdef ADVANCETASK
+	BMS_Request_t req;
 	req.cmd = CMD_READ_CELL_VOLTAGES;
 	req.requester = xTaskGetCurrentTaskHandle();
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
 	for(;;)
 	{
+
 		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
 		//wait 100ms for MSG to arrive
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
@@ -654,11 +714,24 @@ void BMS_CellVoltageTask(void const * argument)
 		vTaskDelay(pdMS_TO_TICKS(50));
 	}
 
+#elif defined(NEW_RTOS)
+	for(;;)
+	{
+
+	}
+#endif
+
+
+
 }
 
 //Sends a read voltage cmd to BMS queue to read cell temp
 void BMS_ReadTempTask(void const * argument)
 {
+
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+#ifdef ADVANCETASK
+
 	BMS_Request_t req;
 
 	req.cmd = CMD_READ_GPIO_ADC;
@@ -666,9 +739,10 @@ void BMS_ReadTempTask(void const * argument)
 	//todo make it GPIO_generic
 	req.BOARD_NUM = 1;
 	req.GPIO_NUM = 8;
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+
 	for(;;)
 	{
+
 		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
 		//wait 100ms for MSG to arrive
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
@@ -683,8 +757,34 @@ void BMS_ReadTempTask(void const * argument)
 		}
 		vTaskDelay(pdMS_TO_TICKS(50));
 	}
+#elif defined(NEW_RTOS)
+
+	for(;;)
+	{
+
+	}
+#endif
+
 }
 
+//A Task that periodically pull Cell voltage and Temperature reading
+void BMS_MonitorTask(void const * argument)
+{
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	for(;;)
+	{
+
+	}
+}
+//Receives Command in a Queue and Sends Commands to Daisy chains on demand
+void BMS_CommadTask(void const * argument)
+{
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	for(;;)
+	{
+
+	}
+}
 
 /* USER CODE END 4 */
 

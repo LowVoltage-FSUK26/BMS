@@ -26,8 +26,13 @@
 */
 #define TOTALBOARDS 3       //boards in stack (including the bridge)
 #define SLAVEBOARDS	(TOTALBOARDS - 1)
-#define ADVANCETASK
 
+//---------------------
+//RTOS Design MACROS
+//---------------------
+//#define SIMPLETASK
+//#define ADVANCETASK
+#define NEW_RTOS
 
 /* ------------------------------------
      BMS Configuration Typedefs
