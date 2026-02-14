@@ -788,10 +788,14 @@ void BMS_MonitorTask(void const * argument)
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
 	{
+		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		buffer = test2();
 		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+		xSemaphoreGive(UART_MUTEX);
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
+		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
 
+		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
 			buffer = readGPIOVoltage(i, Thermistor_GPIO);
@@ -799,6 +803,7 @@ void BMS_MonitorTask(void const * argument)
 			vTaskDelay(pdMS_TO_TICKS(5));
 		}
 		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
+		xSemaphoreGive(UART_MUTEX);
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		vTaskDelay(100);
@@ -817,6 +822,7 @@ void BMS_CommadTask(void const * argument)
 	{
 		if(xQueueReceive(bmsCmdQueue, &req, portMAX_DELAY) == pdTRUE)
 		{
+			xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 			switch(req.cmd)
 			{
 			case CMD_READ_CELL_VOLTAGES:
@@ -828,7 +834,7 @@ void BMS_CommadTask(void const * argument)
 
 				break;
 			}
-
+			xSemaphoreGive(UART_MUTEX);
 			xTaskNotify(req.requester, cmd_res, eSetBits);
 		}
 	}
