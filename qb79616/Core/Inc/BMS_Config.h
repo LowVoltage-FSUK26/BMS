@@ -26,13 +26,14 @@
 */
 #define TOTALBOARDS 3       //boards in stack (including the bridge)
 #define SLAVEBOARDS	(TOTALBOARDS - 1)
+#define Thermistor_GPIO 8
 
 //---------------------
-//RTOS Design MACROS
+//RTOS Design MODE
 //---------------------
 //#define SIMPLETASK
 //#define ADVANCETASK
-#define NEW_RTOS
+#define EVENT_GROUP
 
 /* ------------------------------------
      BMS Configuration Typedefs

@@ -28,6 +28,7 @@
 #include "BMS_tests.h"
 #include "queue.h"
 #include "semphr.h"
+#include "event_groups.h"
 
 /* USER CODE END Includes */
 
@@ -63,6 +64,8 @@
 //--------------------
 #define NOTIFY_BMS_INIT_DONE   	(1U << 0)
 #define NOTIFY_BMS_GOT_MSG		(1U << 1)
+#define NOTIFY_BMS_GOT_VOLT		(1U << 1)
+#define NOTIFY_BMS_GOT_TEMP		(1U << 2)
 
 
 
@@ -100,7 +103,7 @@ TaskHandle_t BmsReadTempTaskHandle;
 
 TaskHandle_t BmsCommsTaskHandle;
 
-#elif defined(NEW_RTOS)
+#elif defined(EVENT_GROUP)
 
 TaskHandle_t BmsMonitorTaskHandle;
 TaskHandle_t BmsCommandTaskHandle;
@@ -109,20 +112,27 @@ TaskHandle_t BmsCommandTaskHandle;
 #endif
 
 //----------------
+//RTOS EVENTGroup Bits
+//----------------
+const EventBits_t BMS_INIT_DONE_BIT = (1 << 0);
+
+//todo Make a global event bit variable that holds all initialization bits
+
+EventGroupHandle_t BMS_EventGroup;
+
+//----------------
 //RTOS Queues
 //----------------
-//#ifdef ADVACNEDTASK
+
 QueueHandle_t bmsCmdQueue;
-//#else
-//todo Simplify Volt and Temp to One Queue
 QueueHandle_t bmsVoltageQueue;
 QueueHandle_t bmsTempQueue;
-//#endif
+
 
 //----------------
 //RTOS MUTEX
 //----------------
-#ifdef NEW_RTOS
+#ifdef EVENT_GROUP
 SemaphoreHandle_t UART_MUTEX;
 #endif
 
@@ -171,7 +181,7 @@ void BMS_Diagnostic(void const * argument);
 
 void BMS_CommsTask(void const * argument);
 
-#elif defined(NEW_RTOS)
+#elif defined(EVENT_GROUP)
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument);
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -312,17 +322,23 @@ int main(void)
 
 	HAL_TIM_Base_Start(&htim2);
 
+	//==================Define EventGroups===================//
+	BMS_EventGroup = xEventGroupCreate();
+	if (BMS_EventGroup == NULL)
+	{
+		/* Handle error: insufficient heap */
+		while(1);
+	}
 
 	//==================Define Queues===================//
-#ifdef ADVACNEDTASK
+
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-#else
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
-#endif
+
 
 	//==================Define MUTEX===================//
-#ifdef NEW_RTOS
+#ifdef EVENT_GROUP
 	UART_MUTEX = xSemaphoreCreateMutex();
 #endif
 
@@ -331,7 +347,7 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 5, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 5, &BmsCellVoltageTaskHandle);
-#ifdef NEW_RTOS
+#ifdef EVENT_GROUP
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 256, NULL,(UBaseType_t) 9, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 9, &BmsCommandTaskHandle);
 #elif defined(ADVANCETASK)
@@ -616,18 +632,19 @@ void BMS_Init(void const * argument)
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
 #ifdef SIMPLETASK
+
 	xTaskNotify(BMS_DiagnosticHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-#else
+
+#elif defined(ADVANCETASK)
+
 	xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
 	xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-#ifdef ADVANCETASK
 	xTaskNotify(BmsCommsTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-#elif defined(NEW_RTOS)
-	xTaskNotify(BmsMonitorTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-	xTaskNotify(BmsCommandTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
+
+#elif defined(EVENT_GROUP)
+	xEventGroupSetBits(BMS_EventGroup, BMS_INIT_DONE_BIT);
 #endif
 
-#endif
 	vTaskDelete(NULL);
 
 }
@@ -657,8 +674,8 @@ void BMS_Diagnostic(void const * argument)
 
 void BMS_CommsTask(void const * argument)
 {
-	BMS_Request_t req;
 	float buffer = 0;
+	BMS_Request_t req;
 	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
 	for(;;)
 	{
@@ -685,23 +702,32 @@ void BMS_CommsTask(void const * argument)
 			xTaskNotify(req.requester, NOTIFY_BMS_GOT_MSG, eSetBits);
 		}
 	}
+
 }
 
 //Sends a read voltage cmd to BMS queue to read cell voltages
 void BMS_CellVoltageTask(void const * argument)
 {
-
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
-#ifdef ADVANCETASK
 	BMS_Request_t req;
 	req.cmd = CMD_READ_CELL_VOLTAGES;
 	req.requester = xTaskGetCurrentTaskHandle();
+
+#ifdef ADVANCETASK
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+#elif defined(EVENT_GROUP)
+	//todo Make timeout and Handling to this timeout
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+#endif
+
 	for(;;)
 	{
 
+#ifdef ADVANCETASK
 		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-		//wait 100ms for MSG to arrive
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
+#endif
+		//wait for MSG to arrive
+		//todo Optimize wait delay to be dynamic to the number of slaves
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
 		if(xQueueReceive(bmsVoltageQueue, &final_value, (TickType_t)10) == pdTRUE)
 		{
@@ -711,41 +737,36 @@ void BMS_CellVoltageTask(void const * argument)
 		{
 			//indicate message is not received
 		}
-		vTaskDelay(pdMS_TO_TICKS(50));
-	}
-
-#elif defined(NEW_RTOS)
-	for(;;)
-	{
 
 	}
-#endif
-
-
-
 }
 
 //Sends a read voltage cmd to BMS queue to read cell temp
 void BMS_ReadTempTask(void const * argument)
 {
-
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
-#ifdef ADVANCETASK
-
 	BMS_Request_t req;
-
 	req.cmd = CMD_READ_GPIO_ADC;
 	req.requester = xTaskGetCurrentTaskHandle();
 	//todo make it GPIO_generic
 	req.BOARD_NUM = 1;
 	req.GPIO_NUM = 8;
 
+#ifdef ADVANCETASK
+	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+#elif defined(EVENT_GROUP)
+	//todo Make timeout and Handling to this timeout
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+#endif
+
 	for(;;)
 	{
-
+#ifdef ADVANCETASK
 		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-		//wait 100ms for MSG to arrive
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
+#endif
+
+		//todo Optimize wait delay to be dynamic to the number of slaves
+		//wait for MSG to arrive
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
 		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
 		{
@@ -755,36 +776,64 @@ void BMS_ReadTempTask(void const * argument)
 		{
 			//indicate message is not received
 		}
-		vTaskDelay(pdMS_TO_TICKS(50));
-	}
-#elif defined(NEW_RTOS)
-
-	for(;;)
-	{
 
 	}
-#endif
-
 }
 
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument)
 {
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	float buffer = 0;
+	//todo Make timeout and Handling to this timeout
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
 	{
+		buffer = test2();
+		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 
+		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+		{
+			buffer = readGPIOVoltage(i, Thermistor_GPIO);
+			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+			vTaskDelay(pdMS_TO_TICKS(5));
+		}
+		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
+
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+		vTaskDelay(100);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+		vTaskDelay(100);
 	}
 }
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
 void BMS_CommadTask(void const * argument)
 {
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	BMS_Request_t req;
+	uint8_t cmd_res = 0;
+	//todo Make timeout and Handling to this timeout
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
 	{
+		if(xQueueReceive(bmsCmdQueue, &req, portMAX_DELAY) == pdTRUE)
+		{
+			switch(req.cmd)
+			{
+			case CMD_READ_CELL_VOLTAGES:
 
+				break;
+
+			case CMD_READ_GPIO_ADC:
+
+
+				break;
+			}
+
+			xTaskNotify(req.requester, cmd_res, eSetBits);
+		}
 	}
 }
+
 
 /* USER CODE END 4 */
 
