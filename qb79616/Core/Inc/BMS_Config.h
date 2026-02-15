@@ -41,7 +41,8 @@
 */
 typedef enum {
     CMD_READ_CELL_VOLTAGES,
-    CMD_READ_GPIO_ADC
+    CMD_READ_GPIO_ADC,
+	CMD_READ_BRIDGE_FS
 } BMS_Command_t;
 
 typedef struct {
