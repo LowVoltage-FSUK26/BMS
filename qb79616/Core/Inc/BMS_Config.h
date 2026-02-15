@@ -44,6 +44,7 @@ typedef struct {
     uint8_t GPIO_NUM;
     uint8_t BOARD_NUM;
 } BMS_Request_t;
-void checkFaults(void);
+void Bridge_FaultInit(void);
+void Bridge_CheckFaults(void);
 
 #endif /* INC_BMS_CONFIG_H_ */

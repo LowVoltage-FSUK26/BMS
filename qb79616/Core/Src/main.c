@@ -563,6 +563,8 @@ void BMS_Init(void const * argument)
 
 	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
+	 Bridge_FaultInit();
+
 #ifdef ADVANCETASK
 	xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
 	xTaskNotify(BmsCommsTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
@@ -610,7 +612,7 @@ void BMS_CommsTask(void const * argument)
 			{
 				case CMD_READ_CELL_VOLTAGES:
 					buffer = test2();
-					checkFaults();
+					Bridge_CheckFaults();
 					xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 					break;
 
