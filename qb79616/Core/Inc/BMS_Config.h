@@ -26,8 +26,14 @@
 */
 #define TOTALBOARDS 3       //boards in stack (including the bridge)
 #define SLAVEBOARDS	(TOTALBOARDS - 1)
-#define ADVANCETASK
+#define Thermistor_GPIO 8
 
+//---------------------
+//RTOS Design MODE
+//---------------------
+//#define SIMPLETASK
+//#define ADVANCETASK
+#define EVENT_GROUP
 
 /* ------------------------------------
      BMS Configuration Typedefs
@@ -35,7 +41,8 @@
 */
 typedef enum {
     CMD_READ_CELL_VOLTAGES,
-    CMD_READ_GPIO_ADC
+    CMD_READ_GPIO_ADC,
+	CMD_READ_BRIDGE_FS
 } BMS_Command_t;
 
 typedef struct {
