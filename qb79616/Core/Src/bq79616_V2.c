@@ -556,13 +556,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 volatile uint32_t ms_counter = 0;
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM2)
-    {
-        ms_counter++;
-    }
-}
 
 
 /*
