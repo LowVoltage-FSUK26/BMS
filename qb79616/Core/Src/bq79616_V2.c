@@ -61,38 +61,38 @@ uint32_t gTicksPerMicrosecondMod1000 = 0;
 
 void DELAY_init(void)
 {
-  //== Prep for DELAY_microseconds() ==
+	//== Prep for DELAY_microseconds() ==
 
-  //SysTick->LOAD gets set to the number of ticks in a millisecond, in HAL_SYSTICK_Config(), which
-  //is called from HAL_Init(). So we don't need to determine or assume clock frequency, and can
-  //instead just work backwards from there.
-  gSysTickLoad                = SysTick->LOAD;
-  gTicksPerMicrosecondFloor   = (gSysTickLoad+1) / 1000;
-  //This will be zero unless the clock is not an even number of MHz.
-  gTicksPerMicrosecondMod1000 = (gSysTickLoad+1) % 1000;
+	//SysTick->LOAD gets set to the number of ticks in a millisecond, in HAL_SYSTICK_Config(), which
+	//is called from HAL_Init(). So we don't need to determine or assume clock frequency, and can
+	//instead just work backwards from there.
+	gSysTickLoad                = SysTick->LOAD;
+	gTicksPerMicrosecondFloor   = (gSysTickLoad+1) / 1000;
+	//This will be zero unless the clock is not an even number of MHz.
+	gTicksPerMicrosecondMod1000 = (gSysTickLoad+1) % 1000;
 }
 void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
-{
-  uint32_t startTick = SysTick->VAL; //get start tick as soon as possible
+						{
+	uint32_t startTick = SysTick->VAL; //get start tick as soon as possible
 
-  //The asserts and division that follow dictate the minimum possible delay (smallest
-  //supported "us" parameter). They provide sanity checks and accuracy as a trade-off.
-  //assert(gSysTickLoad == SysTick->LOAD); //make sure DELAY_init got called and nothing has changed since
-  //assert(us < 1000); //otherwise, infinite loop!
+	//The asserts and division that follow dictate the minimum possible delay (smallest
+	//supported "us" parameter). They provide sanity checks and accuracy as a trade-off.
+	//assert(gSysTickLoad == SysTick->LOAD); //make sure DELAY_init got called and nothing has changed since
+	//assert(us < 1000); //otherwise, infinite loop!
 
-  uint32_t delayTicks = gTicksPerMicrosecondFloor * us;
-  delayTicks += (500 + gTicksPerMicrosecondMod1000 * us) / 1000; //Probably a nop
+	uint32_t delayTicks = gTicksPerMicrosecondFloor * us;
+	delayTicks += (500 + gTicksPerMicrosecondMod1000 * us) / 1000; //Probably a nop
 
-  while(1)
-  {
-    uint32_t currentTicks = SysTick->VAL;
-    //Handle SysTick->VAL hitting zero and resetting back to SysTick->LOAD.
-    uint32_t elapsedTicks = currentTicks < startTick ? startTick - currentTicks :
-                                                       gSysTickLoad + startTick - currentTicks;
-    if(elapsedTicks >= delayTicks)
-      break;
-  }
-}
+	while(1)
+	{
+		uint32_t currentTicks = SysTick->VAL;
+		//Handle SysTick->VAL hitting zero and resetting back to SysTick->LOAD.
+		uint32_t elapsedTicks = currentTicks < startTick ? startTick - currentTicks :
+				gSysTickLoad + startTick - currentTicks;
+		if(elapsedTicks >= delayTicks)
+			break;
+	}
+						}
 
 /* 
  * The helping functions.
@@ -106,248 +106,248 @@ void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
  */
 void Wake79616(void)
 {
-    HAL_UART_DeInit(&huart1);
-    
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
-    
-    // Configure PA9 (UART TX) as a push-pull output.
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	HAL_UART_DeInit(&huart1);
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	__HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
+
+	// Configure PA9 (UART TX) as a push-pull output.
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
-		
+
 	//HAL_Delay(1000);
-		
-    // Drive TX low
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
-    
-    // Delay 2.5 ms (using HAL_Delay which works in ms)
-   
-    HAL_Delay(2);
-		
-    // Reinitialise UART (this call should reconfigure PA9 to its alternate function)
-    HAL_UART_Init(&huart1);
+
+	// Drive TX low
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+
+	// Delay 2.5 ms (using HAL_Delay which works in ms)
+
+	HAL_Delay(2);
+
+	// Reinitialise UART (this call should reconfigure PA9 to its alternate function)
+	HAL_UART_Init(&huart1);
 }
 
 void Wake79600(void)
 {
 	uint8_t received_data = 0;
-    HAL_UART_DeInit(&huart1);
-    
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
-    
-    // Configure PA9 (UART TX) as a push-pull output.
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	HAL_UART_DeInit(&huart1);
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	__HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
+
+	// Configure PA9 (UART TX) as a push-pull output.
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
 
-		
-    // Drive TX low
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
-   
-    HAL_Delay(2); // WAKE ping = 2.5ms to 3ms
 
-    // Reinitialize UART (this call should reconfigure PA9 to its alternate function)
-    HAL_UART_Init(&huart1);
+	// Drive TX low
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
 
-    //Needed Delay for UART of bridge to work
-      HAL_Delay(3);
+	HAL_Delay(2); // WAKE ping = 2.5ms to 3ms
+
+	// Reinitialize UART (this call should reconfigure PA9 to its alternate function)
+	HAL_UART_Init(&huart1);
+
+	//Needed Delay for UART of bridge to work
+	HAL_Delay(3);
 }
 
 void Wake79600_RTOS(void)
 {
 	uint8_t received_data = 0;
-    HAL_UART_DeInit(&huart1);
+	HAL_UART_DeInit(&huart1);
 
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	__HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
 
-    // Configure PA9 (UART TX) as a push-pull output.
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	// Configure PA9 (UART TX) as a push-pull output.
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
 
 
-    // Drive TX low
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+	// Drive TX low
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
 
-    vTaskDelay(2); // WAKE ping = 2.5ms to 3ms
+	vTaskDelay(2); // WAKE ping = 2.5ms to 3ms
 
-    // Reinitialize UART (this call should reconfigure PA9 to its alternate function)
-    HAL_UART_Init(&huart1);
+	// Reinitialize UART (this call should reconfigure PA9 to its alternate function)
+	HAL_UART_Init(&huart1);
 
-    //Needed Delay for UART of bridge to work
-    vTaskDelay(3);
+	//Needed Delay for UART of bridge to work
+	vTaskDelay(3);
 }
 
 void SD79616(void)
 {
-    HAL_UART_DeInit(&huart1);
-    
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
-    
-    // Delay 9 ms
-    HAL_Delay(9);
-    
-    HAL_UART_Init(&huart1);
+	HAL_UART_DeInit(&huart1);
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+
+	// Delay 9 ms
+	HAL_Delay(9);
+
+	HAL_UART_Init(&huart1);
 }
 
 void StA79616(void)
 {
-    HAL_UART_DeInit(&huart1);
-    
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
-    
-    // Delay 250 microseconds (using delay_us)
-    DELAY_microseconds(250);
-    HAL_UART_Init(&huart1);
+	HAL_UART_DeInit(&huart1);
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+
+	// Delay 250 microseconds (using delay_us)
+	DELAY_microseconds(250);
+	HAL_UART_Init(&huart1);
 }
 
 void HWRST79616(void)
 {
-    HAL_UART_DeInit(&huart1);
-    
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    
-    GPIO_InitStruct.Pin = GPIO_PIN_9;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-    
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
-    
-    // Delay 36 ms
-    HAL_Delay(36);
-    
-    HAL_UART_Init(&huart1);
+	HAL_UART_DeInit(&huart1);
+
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+
+	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+
+	// Delay 36 ms
+	HAL_Delay(36);
+
+	HAL_UART_Init(&huart1);
 }
 
 // auto addressing sequence for daisy chain **NO BRIDGE**
 void AutoAddress(void)
 {
-    //DUMMY WRITE TO SNCHRONIZE ALL DAISY CHAIN DEVICES DLL (IF A DEVICE RESET OCCURED PRIOR TO THIS)
-    writeReg(0, OTP_ECC_DATAIN1, 0X00, 1, FRMWRT_ALL_W);
-    writeReg(0, OTP_ECC_DATAIN2, 0X00, 1, FRMWRT_ALL_W);
-    writeReg(0, OTP_ECC_DATAIN3, 0X00, 1, FRMWRT_ALL_W);
-    writeReg(0, OTP_ECC_DATAIN4, 0X00, 1, FRMWRT_ALL_W);
-    writeReg(0, OTP_ECC_DATAIN5, 0X00, 1, FRMWRT_ALL_W);
-    writeReg(0, OTP_ECC_DATAIN6, 0X00, 1, FRMWRT_ALL_W);
-    writeReg(0, OTP_ECC_DATAIN7, 0X00, 1, FRMWRT_ALL_W);
-    writeReg(0, OTP_ECC_DATAIN8, 0X00, 1, FRMWRT_ALL_W);
-	
-		//writeReg(0, OTP_ECC_DATAIN9, 0X00, 1, FRMWRT_ALL_W);
-    //writeReg(0, OTP_ECC_TEST, 0X00, 1, FRMWRT_ALL_W);
-    
+	//DUMMY WRITE TO SNCHRONIZE ALL DAISY CHAIN DEVICES DLL (IF A DEVICE RESET OCCURED PRIOR TO THIS)
+	writeReg(0, OTP_ECC_DATAIN1, 0X00, 1, FRMWRT_ALL_W);
+	writeReg(0, OTP_ECC_DATAIN2, 0X00, 1, FRMWRT_ALL_W);
+	writeReg(0, OTP_ECC_DATAIN3, 0X00, 1, FRMWRT_ALL_W);
+	writeReg(0, OTP_ECC_DATAIN4, 0X00, 1, FRMWRT_ALL_W);
+	writeReg(0, OTP_ECC_DATAIN5, 0X00, 1, FRMWRT_ALL_W);
+	writeReg(0, OTP_ECC_DATAIN6, 0X00, 1, FRMWRT_ALL_W);
+	writeReg(0, OTP_ECC_DATAIN7, 0X00, 1, FRMWRT_ALL_W);
+	writeReg(0, OTP_ECC_DATAIN8, 0X00, 1, FRMWRT_ALL_W);
+
+	//writeReg(0, OTP_ECC_DATAIN9, 0X00, 1, FRMWRT_ALL_W);
+	//writeReg(0, OTP_ECC_TEST, 0X00, 1, FRMWRT_ALL_W);
+
 	//ENABLE AUTO ADDRESSING MODE
-    writeReg(0, BQ79616_CONTROL1, 0X01, 1, FRMWRT_ALL_W);
+	writeReg(0, BQ79616_CONTROL1, 0X01, 1, FRMWRT_ALL_W);
 
-    //SET ADDRESSES FOR EVERY BOARD
-    for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-    {
-        writeReg(0, BQ79616_DIR0_ADDR, currentBoard, 1, FRMWRT_ALL_W);
-    }
+	//SET ADDRESSES FOR EVERY BOARD
+	for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
+	{
+		writeReg(0, BQ79616_DIR0_ADDR, currentBoard, 1, FRMWRT_ALL_W);
+	}
 
-    writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W); //set everything as a stack device first
+	writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W); //set everything as a stack device first
 
-    if(TOTALBOARDS==1) //if there's only 1 board, it's the base AND top of stack, so change it to those
-    {
-        writeReg(0, BQ79616_COMM_CTRL, 0x01, 1, FRMWRT_SGL_W);
-    }
-    else //otherwise set the base and top of stack individually
-    {
-        writeReg(0, BQ79616_COMM_CTRL, 0x00, 1, FRMWRT_SGL_W);
-        writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
-    }
+	if(TOTALBOARDS==1) //if there's only 1 board, it's the base AND top of stack, so change it to those
+	{
+		writeReg(0, BQ79616_COMM_CTRL, 0x01, 1, FRMWRT_SGL_W);
+	}
+	else //otherwise set the base and top of stack individually
+	{
+		writeReg(0, BQ79616_COMM_CTRL, 0x00, 1, FRMWRT_SGL_W);
+		writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
+	}
 
-    //SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-    readReg(0, OTP_ECC_DATAIN1, response_frame2, 1, 0, FRMWRT_ALL_R);
-    readReg(0, OTP_ECC_DATAIN2, response_frame2, 1, 0, FRMWRT_ALL_R);
-    readReg(0, OTP_ECC_DATAIN3, response_frame2, 1, 0, FRMWRT_ALL_R);
-    readReg(0, OTP_ECC_DATAIN4, response_frame2, 1, 0, FRMWRT_ALL_R);
-    readReg(0, OTP_ECC_DATAIN5, response_frame2, 1, 0, FRMWRT_ALL_R);
-    readReg(0, OTP_ECC_DATAIN6, response_frame2, 1, 0, FRMWRT_ALL_R);
-    readReg(0, OTP_ECC_DATAIN7, response_frame2, 1, 0, FRMWRT_ALL_R);
-    readReg(0, OTP_ECC_DATAIN8, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
+	readReg(0, OTP_ECC_DATAIN1, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN2, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN3, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN4, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN5, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN6, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN7, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN8, response_frame2, 1, 0, FRMWRT_ALL_R);
 
-		
-    //OPTIONAL: read back all device addresses
-    for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-    {
-        readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 0, FRMWRT_SGL_R);
-        
-    }
 
-    //RESET ANY COMM FAULT CONDITIONS FROM STARTUP
-    writeReg(0, FAULT_RST2, 0x03, 1, FRMWRT_ALL_W);
+	//OPTIONAL: read back all device addresses
+	for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
+	{
+		readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 0, FRMWRT_SGL_R);
 
-    return;
+	}
+
+	//RESET ANY COMM FAULT CONDITIONS FROM STARTUP
+	writeReg(0, FAULT_RST2, 0x03, 1, FRMWRT_ALL_W);
+
+	return;
 }
 
 // auto addressing sequence for daisy chain **WITH BRIDGE**
 void Bridge_AutoAddress(void)
 {
-    //DUMMY WRITE TO SNCHRONIZE ALL DAISY CHAIN DEVICES DLL (IF A DEVICE RESET OCCURED PRIOR TO THIS)
-    writeReg(0, OTP_ECC_DATAIN1, 0X00, 1, FRMWRT_STK_W);	//Modification: changed FRMWRT_ALL_W to FRMWRT_STK_W
-    writeReg(0, OTP_ECC_DATAIN2, 0X00, 1, FRMWRT_STK_W);
-    writeReg(0, OTP_ECC_DATAIN3, 0X00, 1, FRMWRT_STK_W);
-    writeReg(0, OTP_ECC_DATAIN4, 0X00, 1, FRMWRT_STK_W);
-    writeReg(0, OTP_ECC_DATAIN5, 0X00, 1, FRMWRT_STK_W);
-    writeReg(0, OTP_ECC_DATAIN6, 0X00, 1, FRMWRT_STK_W);
-    writeReg(0, OTP_ECC_DATAIN7, 0X00, 1, FRMWRT_STK_W);
-    writeReg(0, OTP_ECC_DATAIN8, 0X00, 1, FRMWRT_STK_W);
+	//DUMMY WRITE TO SNCHRONIZE ALL DAISY CHAIN DEVICES DLL (IF A DEVICE RESET OCCURED PRIOR TO THIS)
+	writeReg(0, OTP_ECC_DATAIN1, 0X00, 1, FRMWRT_STK_W);	//Modification: changed FRMWRT_ALL_W to FRMWRT_STK_W
+	writeReg(0, OTP_ECC_DATAIN2, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN3, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN4, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN5, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN6, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN7, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN8, 0X00, 1, FRMWRT_STK_W);
 
-    
+
 	//ENABLE AUTO ADDRESSING MODE
-    writeReg(0, BQ79616_CONTROL1, 0X01, 1, FRMWRT_ALL_W);
+	writeReg(0, BQ79616_CONTROL1, 0X01, 1, FRMWRT_ALL_W);
 
-    //SET ADDRESSES FOR EVERY BOARD
-    for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-    {
-        writeReg(0, BQ79616_DIR0_ADDR, currentBoard, 1, FRMWRT_ALL_W);
-    }
+	//SET ADDRESSES FOR EVERY BOARD
+	for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
+	{
+		writeReg(0, BQ79616_DIR0_ADDR, currentBoard, 1, FRMWRT_ALL_W);
+	}
 
-    //BROADCAST WRITE TO SET ALL DEVICES AS STACK DEVICE
-    writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W); //Check: Change FRMWRT_ALL_W to FRMWRT_STK_W
+	//BROADCAST WRITE TO SET ALL DEVICES AS STACK DEVICE
+	writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W); //Check: Change FRMWRT_ALL_W to FRMWRT_STK_W
 
-    //SET THE HIGHEST DEVICE IN THE STACK AS BOTH STACK AND TOP OF STACK
-    writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
+	//SET THE HIGHEST DEVICE IN THE STACK AS BOTH STACK AND TOP OF STACK
+	writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
 
 
-    //OPTIONAL: read back all device addresses on the Stack
-    //Future Modification: Change to stack read
-    for(currentBoard=1; currentBoard<TOTALBOARDS; currentBoard++)
-    {
-        readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 1000, FRMWRT_SGL_R);
+	//OPTIONAL: read back all device addresses on the Stack
+	//Future Modification: Change to stack read
+	for(currentBoard=1; currentBoard<TOTALBOARDS; currentBoard++)
+	{
+		readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 1000, FRMWRT_SGL_R);
 
-    }
-    //OPTIONAL: read register address 0x2001 and verify that the value is 0x14
-    readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	}
+	//OPTIONAL: read register address 0x2001 and verify that the value is 0x14
+	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 
-    //SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
+	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
 	readReg(1, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 	readReg(2, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 	readReg(1, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
@@ -357,64 +357,64 @@ void Bridge_AutoAddress(void)
 	readReg(1, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 	readReg(2, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 
-    return;
+	return;
 }
 
 
 //Auto Addressing sequence for Ring Configuration
 void AutoAddress_Ring(void)
 {
-    AutoAddress();
+	AutoAddress();
 
-    //Reverse Communication Direction of Base
-    writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_SGL_W);
+	//Reverse Communication Direction of Base
+	writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_SGL_W);
 
-    //Revese Communication Direction for the reset of chain
-    writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_ALL_R);
+	//Revese Communication Direction for the reset of chain
+	writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_ALL_R);
 
-    //SET ADDRESSES FOR EVERY BOARD
-    for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-    {
-        writeReg(0, BQ79616_DIR1_ADDR, currentBoard, 1, FRMWRT_ALL_W);
-    }
+	//SET ADDRESSES FOR EVERY BOARD
+	for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
+	{
+		writeReg(0, BQ79616_DIR1_ADDR, currentBoard, 1, FRMWRT_ALL_W);
+	}
 
-    writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W); //set everything as a stack device first
+	writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W); //set everything as a stack device first
 
-    if(TOTALBOARDS==1) //if there's only 1 board, it's the base AND top of stack, so change it to those
-    {
-        writeReg(0, BQ79616_COMM_CTRL, 0x01, 1, FRMWRT_SGL_W);
-    }
-    else //otherwise set the base and top of stack individually
-    {
-        writeReg(0, BQ79616_COMM_CTRL, 0x00, 1, FRMWRT_SGL_W);
-        writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
-    }
+	if(TOTALBOARDS==1) //if there's only 1 board, it's the base AND top of stack, so change it to those
+	{
+		writeReg(0, BQ79616_COMM_CTRL, 0x01, 1, FRMWRT_SGL_W);
+	}
+	else //otherwise set the base and top of stack individually
+	{
+		writeReg(0, BQ79616_COMM_CTRL, 0x00, 1, FRMWRT_SGL_W);
+		writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
+	}
 
-    //return to original Communication Direction of Base
-    writeReg(0, BQ79616_CONTROL1, (0 << 7), 1, FRMWRT_SGL_W);
+	//return to original Communication Direction of Base
+	writeReg(0, BQ79616_CONTROL1, (0 << 7), 1, FRMWRT_SGL_W);
 
-    //return to original Communication Direction for the reset of chain
-    writeReg(0, BQ79616_CONTROL1, (0 << 7), 1, FRMWRT_ALL_R);
+	//return to original Communication Direction for the reset of chain
+	writeReg(0, BQ79616_CONTROL1, (0 << 7), 1, FRMWRT_ALL_R);
 
-    //SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-//    readReg(0, OTP_ECC_DATAIN1, response_frame2, 1, 0, FRMWRT_ALL_R);
-//    readReg(0, OTP_ECC_DATAIN2, response_frame2, 1, 0, FRMWRT_ALL_R);
-//    readReg(0, OTP_ECC_DATAIN3, response_frame2, 1, 0, FRMWRT_ALL_R);
-//    readReg(0, OTP_ECC_DATAIN4, response_frame2, 1, 0, FRMWRT_ALL_R);
-//    readReg(0, OTP_ECC_DATAIN5, response_frame2, 1, 0, FRMWRT_ALL_R);
-//    readReg(0, OTP_ECC_DATAIN6, response_frame2, 1, 0, FRMWRT_ALL_R);
-//    readReg(0, OTP_ECC_DATAIN7, response_frame2, 1, 0, FRMWRT_ALL_R);
-//    readReg(0, OTP_ECC_DATAIN8, response_frame2, 1, 0, FRMWRT_ALL_R);
-//
-//     //OPTIONAL: read back all device addresses
-//    for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-//    {
-//        readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 0, FRMWRT_SGL_R);
-//
-//    }
+	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
+	//    readReg(0, OTP_ECC_DATAIN1, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//    readReg(0, OTP_ECC_DATAIN2, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//    readReg(0, OTP_ECC_DATAIN3, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//    readReg(0, OTP_ECC_DATAIN4, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//    readReg(0, OTP_ECC_DATAIN5, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//    readReg(0, OTP_ECC_DATAIN6, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//    readReg(0, OTP_ECC_DATAIN7, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//    readReg(0, OTP_ECC_DATAIN8, response_frame2, 1, 0, FRMWRT_ALL_R);
+	//
+	//     //OPTIONAL: read back all device addresses
+	//    for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
+	//    {
+	//        readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 0, FRMWRT_SGL_R);
+	//
+	//    }
 
-    //RESET ANY COMM FAULT CONDITIONS FROM STARTUP
-    writeReg(0, FAULT_RST2, 0x03, 1, FRMWRT_ALL_W);
+	//RESET ANY COMM FAULT CONDITIONS FROM STARTUP
+	writeReg(0, FAULT_RST2, 0x03, 1, FRMWRT_ALL_W);
 
 
 }
@@ -426,74 +426,74 @@ void AutoAddress_Ring(void)
  */
 int writeReg(uint8_t bID, uint16_t wAddr, uint64_t dwData, uint8_t bLen, uint8_t bWriteType)
 {
-    bRes = 0;
-    memset(bBuf, 0, sizeof(bBuf));
-    
-    switch (bLen) {
-        case 1:
-            bBuf[0] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 1, bWriteType);
-            break;
-        case 2:
-            bBuf[0] = (dwData >> 8) & 0xFF;
-            bBuf[1] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 2, bWriteType);
-            break;
-        case 3:
-            bBuf[0] = (dwData >> 16) & 0xFF;
-            bBuf[1] = (dwData >> 8) & 0xFF;
-            bBuf[2] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 3, bWriteType);
-            break;
-        case 4:
-            bBuf[0] = (dwData >> 24) & 0xFF;
-            bBuf[1] = (dwData >> 16) & 0xFF;
-            bBuf[2] = (dwData >> 8) & 0xFF;
-            bBuf[3] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 4, bWriteType);
-            break;
-        case 5:
-            bBuf[0] = (dwData >> 32) & 0xFF;
-            bBuf[1] = (dwData >> 24) & 0xFF;
-            bBuf[2] = (dwData >> 16) & 0xFF;
-            bBuf[3] = (dwData >> 8) & 0xFF;
-            bBuf[4] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 5, bWriteType);
-            break;
-        case 6:
-            bBuf[0] = (dwData >> 40) & 0xFF;
-            bBuf[1] = (dwData >> 32) & 0xFF;
-            bBuf[2] = (dwData >> 24) & 0xFF;
-            bBuf[3] = (dwData >> 16) & 0xFF;
-            bBuf[4] = (dwData >> 8) & 0xFF;
-            bBuf[5] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 6, bWriteType);
-            break;
-        case 7:
-            bBuf[0] = (dwData >> 48) & 0xFF;
-            bBuf[1] = (dwData >> 40) & 0xFF;
-            bBuf[2] = (dwData >> 32) & 0xFF;
-            bBuf[3] = (dwData >> 24) & 0xFF;
-            bBuf[4] = (dwData >> 16) & 0xFF;
-            bBuf[5] = (dwData >> 8) & 0xFF;
-            bBuf[6] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 7, bWriteType);
-            break;
-        case 8:
-            bBuf[0] = (dwData >> 56) & 0xFF;
-            bBuf[1] = (dwData >> 48) & 0xFF;
-            bBuf[2] = (dwData >> 40) & 0xFF;
-            bBuf[3] = (dwData >> 32) & 0xFF;
-            bBuf[4] = (dwData >> 24) & 0xFF;
-            bBuf[5] = (dwData >> 16) & 0xFF;
-            bBuf[6] = (dwData >> 8) & 0xFF;
-            bBuf[7] = dwData & 0xFF;
-            bRes = writeFrame(bID, wAddr, bBuf, 8, bWriteType);
-            break;
-        default:
-            break;
-    }
-    return bRes;
+	bRes = 0;
+	memset(bBuf, 0, sizeof(bBuf));
+
+	switch (bLen) {
+	case 1:
+		bBuf[0] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 1, bWriteType);
+		break;
+	case 2:
+		bBuf[0] = (dwData >> 8) & 0xFF;
+		bBuf[1] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 2, bWriteType);
+		break;
+	case 3:
+		bBuf[0] = (dwData >> 16) & 0xFF;
+		bBuf[1] = (dwData >> 8) & 0xFF;
+		bBuf[2] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 3, bWriteType);
+		break;
+	case 4:
+		bBuf[0] = (dwData >> 24) & 0xFF;
+		bBuf[1] = (dwData >> 16) & 0xFF;
+		bBuf[2] = (dwData >> 8) & 0xFF;
+		bBuf[3] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 4, bWriteType);
+		break;
+	case 5:
+		bBuf[0] = (dwData >> 32) & 0xFF;
+		bBuf[1] = (dwData >> 24) & 0xFF;
+		bBuf[2] = (dwData >> 16) & 0xFF;
+		bBuf[3] = (dwData >> 8) & 0xFF;
+		bBuf[4] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 5, bWriteType);
+		break;
+	case 6:
+		bBuf[0] = (dwData >> 40) & 0xFF;
+		bBuf[1] = (dwData >> 32) & 0xFF;
+		bBuf[2] = (dwData >> 24) & 0xFF;
+		bBuf[3] = (dwData >> 16) & 0xFF;
+		bBuf[4] = (dwData >> 8) & 0xFF;
+		bBuf[5] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 6, bWriteType);
+		break;
+	case 7:
+		bBuf[0] = (dwData >> 48) & 0xFF;
+		bBuf[1] = (dwData >> 40) & 0xFF;
+		bBuf[2] = (dwData >> 32) & 0xFF;
+		bBuf[3] = (dwData >> 24) & 0xFF;
+		bBuf[4] = (dwData >> 16) & 0xFF;
+		bBuf[5] = (dwData >> 8) & 0xFF;
+		bBuf[6] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 7, bWriteType);
+		break;
+	case 8:
+		bBuf[0] = (dwData >> 56) & 0xFF;
+		bBuf[1] = (dwData >> 48) & 0xFF;
+		bBuf[2] = (dwData >> 40) & 0xFF;
+		bBuf[3] = (dwData >> 32) & 0xFF;
+		bBuf[4] = (dwData >> 24) & 0xFF;
+		bBuf[5] = (dwData >> 16) & 0xFF;
+		bBuf[6] = (dwData >> 8) & 0xFF;
+		bBuf[7] = dwData & 0xFF;
+		bRes = writeFrame(bID, wAddr, bBuf, 8, bWriteType);
+		break;
+	default:
+		break;
+	}
+	return bRes;
 }
 
 /*
@@ -502,67 +502,67 @@ int writeReg(uint8_t bID, uint16_t wAddr, uint64_t dwData, uint8_t bLen, uint8_t
  */
 int writeFrame(uint8_t bID, uint16_t wAddr, uint8_t * pData, uint8_t bLen, uint8_t bWriteType)
 {
-    int bPktLen = 0;
-    uint8_t * pBuf = pFrame;
-    
-    // Fill pFrame with 0x7F (as in the original)
-    memset(pFrame, 0x7F, sizeof(pFrame));
-    
-    // First byte: combine header bits
-    *pBuf++ = 0x80 | (bWriteType) | ((bWriteType & 0x10) ? (bLen - 1) : 0);
-    
-    // For single read/write, include device ID
-    if (bWriteType == FRMWRT_SGL_R || bWriteType == FRMWRT_SGL_W)
-    {
-        *pBuf++ = (bID & 0xFF);
-    }
-    
-    // Add the register address (two bytes)
-    *pBuf++ = (wAddr >> 8) & 0xFF;
-    *pBuf++ = wAddr & 0xFF;
-    
-    // Append data bytes
-    for (int i = 0; i < bLen; i++)
-    {
-        *pBuf++ = pData[i];
-    }
-    
-    bPktLen = pBuf - pFrame;
-    
-    // Compute the CRC over the frame so far.
-    wCRC = CRC16(pFrame, bPktLen);
-    *pBuf++ = wCRC & 0xFF;
-    *pBuf++ = (wCRC >> 8) & 0xFF;
-    bPktLen += 2;
-    
-    // Transmit the frame using HAL_UART_Transmit (with a timeout of 100 ms)
-     HAL_UART_Transmit(&huart1, pFrame, bPktLen, 100);
-		
-		
-    return bPktLen;
+	int bPktLen = 0;
+	uint8_t * pBuf = pFrame;
+
+	// Fill pFrame with 0x7F (as in the original)
+	memset(pFrame, 0x7F, sizeof(pFrame));
+
+	// First byte: combine header bits
+	*pBuf++ = 0x80 | (bWriteType) | ((bWriteType & 0x10) ? (bLen - 1) : 0);
+
+	// For single read/write, include device ID
+	if (bWriteType == FRMWRT_SGL_R || bWriteType == FRMWRT_SGL_W)
+	{
+		*pBuf++ = (bID & 0xFF);
+	}
+
+	// Add the register address (two bytes)
+	*pBuf++ = (wAddr >> 8) & 0xFF;
+	*pBuf++ = wAddr & 0xFF;
+
+	// Append data bytes
+	for (int i = 0; i < bLen; i++)
+	{
+		*pBuf++ = pData[i];
+	}
+
+	bPktLen = pBuf - pFrame;
+
+	// Compute the CRC over the frame so far.
+	wCRC = CRC16(pFrame, bPktLen);
+	*pBuf++ = wCRC & 0xFF;
+	*pBuf++ = (wCRC >> 8) & 0xFF;
+	bPktLen += 2;
+
+	// Transmit the frame using HAL_UART_Transmit (with a timeout of 100 ms)
+	HAL_UART_Transmit(&huart1, pFrame, bPktLen, 100);
+
+
+	return bPktLen;
 }
 uint8_t tx_data = '0';
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  if (huart->Instance == USART1)
-  {
-    int_ack=1;
-    uint8_t tx_data = 'A';
-    HAL_UART_Transmit(&huart2, &tx_data, 1, HAL_MAX_DELAY);
+	if (huart->Instance == USART1)
+	{
+		int_ack=1;
+		uint8_t tx_data = 'A';
+		HAL_UART_Transmit(&huart2, &tx_data, 1, HAL_MAX_DELAY);
 
-  }
+	}
 }
 
 volatile uint32_t ms_counter = 0;
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM2)
-    {
-        ms_counter++;
-    }
-}
+//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+//{
+//    if (htim->Instance == TIM2)
+//    {
+//        ms_counter++;
+//    }
+//}
 
 
 /*
@@ -573,51 +573,51 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
  */
 
 int readReg(uint8_t bID, uint16_t wAddr, uint8_t* pData, uint8_t bLen, uint32_t dwTimeOut, uint8_t bWriteType) {
-    int bRes = 0;
+	int bRes = 0;
 
-   // Buffer to receive full frame (metadata + register data + CRC)
-   // uint8_t fullBuffer[bLen + 6];  
-    memset(fullBuffer, 0, sizeof(fullBuffer));
+	// Buffer to receive full frame (metadata + register data + CRC)
+	// uint8_t fullBuffer[bLen + 6];
+	memset(fullBuffer, 0, sizeof(fullBuffer));
 
-    // Generate Read Frame Request
-    if (bWriteType == FRMWRT_SGL_R) {
-        readFrameReq(bID, wAddr, bLen, bWriteType);
-       // HAL_UART_Receive(&huart1, fullBuffer, bLen + 6, dwTimeOut);
-         int_ack=0;
-         HAL_UART_Receive_IT(&huart1, fullBuffer, bLen + 6);			
-        bRes = bLen + 6;
-    } else if (bWriteType == FRMWRT_STK_R) {
-        readFrameReq(bID, wAddr, bLen, bWriteType);
-        //HAL_UART_Receive(&huart1, fullBuffer, (bLen + 6) * (TOTALBOARDS - 1), dwTimeOut);
-        int_ack=0;
-        HAL_UART_Receive_IT(&huart1, fullBuffer, (bLen + 6) * (TOTALBOARDS - 1));
-        bRes = (bLen + 6) * (TOTALBOARDS - 1);
-    } else if (bWriteType == FRMWRT_ALL_R) {
-        readFrameReq(bID, wAddr, bLen, bWriteType);
-       // HAL_UART_Receive(&huart1, fullBuffer, (bLen + 6) * TOTALBOARDS, dwTimeOut);
-        int_ack=0;
-        HAL_UART_Receive_IT(&huart1, fullBuffer, (bLen + 6) * TOTALBOARDS);
-        bRes = (bLen +6) * TOTALBOARDS;
-    } else {
-        return 0; // Invalid read type
-    }
+	// Generate Read Frame Request
+	if (bWriteType == FRMWRT_SGL_R) {
+		readFrameReq(bID, wAddr, bLen, bWriteType);
+		// HAL_UART_Receive(&huart1, fullBuffer, bLen + 6, dwTimeOut);
+		int_ack=0;
+		HAL_UART_Receive_IT(&huart1, fullBuffer, bLen + 6);
+		bRes = bLen + 6;
+	} else if (bWriteType == FRMWRT_STK_R) {
+		readFrameReq(bID, wAddr, bLen, bWriteType);
+		//HAL_UART_Receive(&huart1, fullBuffer, (bLen + 6) * (TOTALBOARDS - 1), dwTimeOut);
+		int_ack=0;
+		HAL_UART_Receive_IT(&huart1, fullBuffer, (bLen + 6) * (TOTALBOARDS - 1));
+		bRes = (bLen + 6) * (TOTALBOARDS - 1);
+	} else if (bWriteType == FRMWRT_ALL_R) {
+		readFrameReq(bID, wAddr, bLen, bWriteType);
+		// HAL_UART_Receive(&huart1, fullBuffer, (bLen + 6) * TOTALBOARDS, dwTimeOut);
+		int_ack=0;
+		HAL_UART_Receive_IT(&huart1, fullBuffer, (bLen + 6) * TOTALBOARDS);
+		bRes = (bLen +6) * TOTALBOARDS;
+	} else {
+		return 0; // Invalid read type
+	}
 
-    while (int_ack==0)
-    {
-        /* code */
-    }
-    
-		
-    // **Check CRC for data integrity**
-    if (CRC16(fullBuffer, bLen + 6) != 0) {
-        return 0;
-    }
+	while (int_ack==0)
+	{
+		/* code */
+	}
 
-    // **Extract actual register data from the received buffer**
-    memcpy(pData, &fullBuffer[4], bLen);
 
-		
-    return bRes;  // Return number of valid data bytes extracted
+	// **Check CRC for data integrity**
+	if (CRC16(fullBuffer, bLen + 6) != 0) {
+		return 0;
+	}
+
+	// **Extract actual register data from the received buffer**
+	memcpy(pData, &fullBuffer[4], bLen);
+
+
+	return bRes;  // Return number of valid data bytes extracted
 }
 
 /*
@@ -625,11 +625,11 @@ int readReg(uint8_t bID, uint16_t wAddr, uint8_t* pData, uint8_t bLen, uint32_t 
  */
 int readFrameReq(uint8_t bID, uint16_t wAddr, uint8_t bByteToReturn, uint8_t bWriteType)
 {
-    bReturn = bByteToReturn - 1;
-    if (bReturn > 127)
-        return 0;
-    
-    return writeFrame(bID, wAddr, &bReturn, 1, bWriteType);
+	bReturn = bByteToReturn - 1;
+	if (bReturn > 127)
+		return 0;
+
+	return writeFrame(bID, wAddr, &bReturn, 1, bWriteType);
 }
 
 /*
@@ -670,99 +670,99 @@ const uint16_t crc16_table[256] = { 0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301,
 
 uint16_t CRC16(uint8_t *pBuf, int nLen)
 {
-    uint16_t wCRC = 0xFFFF;
-    for (int i = 0; i < nLen; i++)
-    {
-        wCRC ^= pBuf[i];
-        wCRC = crc16_table[wCRC & 0xFF] ^ (wCRC >> 8);
-    }
-    return wCRC;
+	uint16_t wCRC = 0xFFFF;
+	for (int i = 0; i < nLen; i++)
+	{
+		wCRC ^= pBuf[i];
+		wCRC = crc16_table[wCRC & 0xFF] ^ (wCRC >> 8);
+	}
+	return wCRC;
 }
 
 //RUN BASIC CELL BALANCING FOR ALL DEVICES
 void RunCB()
 {
-    //SET BALANCING TIMERS TO 30 s
-    writeReg(0, BQ79616_CB_CELL_CTRL_16, 0x0202020202020202, 8, FRMWRT_ALL_W);   //cell 16-9 (8 byte max write)
-    writeReg(0, BQ79616_CB_CELL_CTRL_08, 0x0202020202020202, 8, FRMWRT_ALL_W);    //cell 8-1
+	//SET BALANCING TIMERS TO 30 s
+	writeReg(0, BQ79616_CB_CELL_CTRL_16, 0x0202020202020202, 8, FRMWRT_ALL_W);   //cell 16-9 (8 byte max write)
+	writeReg(0, BQ79616_CB_CELL_CTRL_08, 0x0202020202020202, 8, FRMWRT_ALL_W);    //cell 8-1
 
-    //SET DUTY CYCLE TO 10 s (default)
-    writeReg(0, BQ79616_BAL_CTRL1, 0x01, 1, FRMWRT_ALL_W);   //10s duty cycle
+	//SET DUTY CYCLE TO 10 s (default)
+	writeReg(0, BQ79616_BAL_CTRL1, 0x01, 1, FRMWRT_ALL_W);   //10s duty cycle
 
-    //START BALANCING
-    writeReg(0, BQ79616_BAL_CTRL2, 0x03, 1, FRMWRT_ALL_W); //auto balance and BAL_GO
+	//START BALANCING
+	writeReg(0, BQ79616_BAL_CTRL2, 0x03, 1, FRMWRT_ALL_W); //auto balance and BAL_GO
 }
 
 void update_balancing_threshold(float min_voltage) {
-    uint8_t threshold_value = (uint8_t)((min_voltage - 2.8) / 0.025);  
-    writeReg(0, BQ79616_VCB_DONE_THRESH, threshold_value, 1, FRMWRT_ALL_W);
+	uint8_t threshold_value = (uint8_t)((min_voltage - 2.8) / 0.025);
+	writeReg(0, BQ79616_VCB_DONE_THRESH, threshold_value, 1, FRMWRT_ALL_W);
 	writeReg(0, BQ79616_OVUV_CTRL, 0x05, 1, FRMWRT_ALL_W);          //round-robin and OVUV_GO
 }
 
 void check_cell_balancing(uint8_t boardNum, uint8_t cellsNum){
 	float voltages[16];
-    float max_voltage = 0, min_voltage = 100;
-    uint8_t balance_mask = 0x00;  // Bitmask for which cells to balance
+	float max_voltage = 0, min_voltage = 100;
+	uint8_t balance_mask = 0x00;  // Bitmask for which cells to balance
 
-    // **1. Read all cell voltages**   
-    // **2. Check if balancing should start**
-		// check (max_voltage - min_voltage) > BALANCING_THRESHOLD
-		// check SoC > SOC_BALANCING_START
-		// check temp < TEMP_LIMIT
-		// enable balancing for cells above the threshold only:
-		/*
+	// **1. Read all cell voltages**
+	// **2. Check if balancing should start**
+	// check (max_voltage - min_voltage) > BALANCING_THRESHOLD
+	// check SoC > SOC_BALANCING_START
+	// check temp < TEMP_LIMIT
+	// enable balancing for cells above the threshold only:
+	/*
 			for (int i = 0; i < 16; i++) {
 					if (voltages[i] > (min_voltage + BALANCING_THRESHOLD)) {
 					balance_mask |= (1 << i);  // Set bit for this cell
 				}
 			}
 			//Write balancing control mask to BQ79616**
-		*/
-    
+	 */
+
 
 }
 
 //fault related functions
 void ResetAllFaults(uint8_t bID, uint8_t bWriteType)
 {
-    //BROADCAST INCLUDES EXTRA FUNCTIONALITY TO OVERWRITE THE CUST_CRC WITH THE CURRENT SETTINGS
-    if(bWriteType==FRMWRT_ALL_W)
-    {
-        //READ THE CALCULATED CUSTOMER CRC VALUES
-        readReg(0, CUST_CRC_RSLT_HI, fault_frame, 2, 0, FRMWRT_ALL_R);
-        //OVERWRITE THE CRC OF EVERY BOARD IN THE STACK WITH THE CORRECT CRC
-        for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-        {
-            //THE RETURN FRAME STARTS WITH THE HIGHEST BOARD FIRST, SO THIS WILL WRITE THE HIGHEST BOARD FIRST
-            writeReg(TOTALBOARDS-currentBoard-1, BQ79616_CUST_CRC_HI, fault_frame[currentBoard*8+4] << 8 | fault_frame[currentBoard*8+5], 2, FRMWRT_SGL_W);
-        }
-        //NOW CLEAR EVERY FAULT
-        writeReg(0, FAULT_RST1, 0xFFFF, 2, FRMWRT_ALL_W);
-    }
-    else if(bWriteType==FRMWRT_SGL_W)
-    {
-        writeReg(bID, FAULT_RST1, 0xFFFF, 2, FRMWRT_SGL_W);
-    }
-    else if(bWriteType==FRMWRT_STK_W)
-    {
-        writeReg(0, FAULT_RST1, 0xFFFF, 2, FRMWRT_STK_W);
-    }
+	//BROADCAST INCLUDES EXTRA FUNCTIONALITY TO OVERWRITE THE CUST_CRC WITH THE CURRENT SETTINGS
+	if(bWriteType==FRMWRT_ALL_W)
+	{
+		//READ THE CALCULATED CUSTOMER CRC VALUES
+		readReg(0, CUST_CRC_RSLT_HI, fault_frame, 2, 0, FRMWRT_ALL_R);
+		//OVERWRITE THE CRC OF EVERY BOARD IN THE STACK WITH THE CORRECT CRC
+		for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
+		{
+			//THE RETURN FRAME STARTS WITH THE HIGHEST BOARD FIRST, SO THIS WILL WRITE THE HIGHEST BOARD FIRST
+			writeReg(TOTALBOARDS-currentBoard-1, BQ79616_CUST_CRC_HI, fault_frame[currentBoard*8+4] << 8 | fault_frame[currentBoard*8+5], 2, FRMWRT_SGL_W);
+		}
+		//NOW CLEAR EVERY FAULT
+		writeReg(0, FAULT_RST1, 0xFFFF, 2, FRMWRT_ALL_W);
+	}
+	else if(bWriteType==FRMWRT_SGL_W)
+	{
+		writeReg(bID, FAULT_RST1, 0xFFFF, 2, FRMWRT_SGL_W);
+	}
+	else if(bWriteType==FRMWRT_STK_W)
+	{
+		writeReg(0, FAULT_RST1, 0xFFFF, 2, FRMWRT_STK_W);
+	}
 }
 
 void MaskAllFaults(uint8_t bID, uint8_t bWriteType)
 {
-    if(bWriteType==FRMWRT_ALL_W)
-    {
-        writeReg(0, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_ALL_W);
-    }
-    else if(bWriteType==FRMWRT_SGL_W)
-    {
-        writeReg(bID, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_SGL_W);
-    }
-    else if(bWriteType==FRMWRT_STK_W)
-    {
-        writeReg(0, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_STK_W);
-    }
+	if(bWriteType==FRMWRT_ALL_W)
+	{
+		writeReg(0, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_ALL_W);
+	}
+	else if(bWriteType==FRMWRT_SGL_W)
+	{
+		writeReg(bID, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_SGL_W);
+	}
+	else if(bWriteType==FRMWRT_STK_W)
+	{
+		writeReg(0, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_STK_W);
+	}
 }
 
 //enable faults to raise nfault flag
@@ -777,22 +777,22 @@ void set_VCB_DONE(uint16_t vDone){
 }
 
 uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
-	
+
 	uint8_t dev_stat;
 	uint8_t goCmd = 0x05;
-	
+
 	//set active cells number
 	writeReg(dev_address, BQ79616_ACTIVE_CELL, activeCells, 1, FRMWRT_SGL_W);
 	//set OV and UV thresholds
 	writeReg(dev_address, BQ79616_OV_THRESH, OV_THR, 1, FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_UV_THRESH, UV_THR, 1, FRMWRT_SGL_W);
-	
+
 	//set OVUV mode
 	writeReg(dev_address, BQ79616_OVUV_CTRL, OVUV_MODE,1 , FRMWRT_SGL_W);
-	
+
 	//Start Protection
 	writeReg(dev_address, BQ79616_OVUV_CTRL, goCmd ,1 , FRMWRT_SGL_W);
-	
+
 	//read back protection status to ensure its ON
 	readReg(dev_address, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
 	//HAL_Delay(50);
@@ -809,32 +809,32 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	uint8_t dev_stat;
 	uint8_t goCmd = 0x05;
 	uint8_t gpioConf= 0x09; //for simplicity enable all gpio thermistors
-	
+
 	//set UT and OT thresholds
 	writeReg(dev_address, BQ79616_OTUT_THRESH, ot_ut ,1 , FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_OTCB_THRESH, cb_coolOff ,1 , FRMWRT_SGL_W);
-	
+
 	//enable TSERF
 	writeReg(dev_address, BQ79616_CONTROL2, 0x01, 1, FRMWRT_SGL_W);
 	HAL_Delay(2);
-	
+
 	//configure all GPIOs for thermistors
 	/*
 	writeReg(dev_address, BQ79616_GPIO_CONF1, gpioConf, 1, FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_GPIO_CONF2, gpioConf, 1, FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_GPIO_CONF3, gpioConf, 1, FRMWRT_SGL_W);
-	*/
-	
+	 */
+
 	writeReg(dev_address, BQ79616_GPIO_CONF1, 0x09, 1, FRMWRT_SGL_W);  // Enable GPIO1 for thermistor
-	
+
 	//set OTUT mode
 	writeReg(dev_address, BQ79616_OTUT_CTRL, OTUT_MODE,1 , FRMWRT_SGL_W);
-	
+
 	//set Vcb_done to Vuv
-	
+
 	//Start Protection
 	writeReg(dev_address, BQ79616_OTUT_CTRL, goCmd ,1 , FRMWRT_SGL_W);
-	
+
 	//read back protection status to ensure its ON
 	readReg(dev_address, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
 	if((dev_stat& 0x10) == 0){
@@ -844,136 +844,242 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 }
 
 uint8_t readCellVoltages(uint8_t boardNum, uint8_t numCells, int *totalV){
-		int cellVoltages[16] = {0}; // Index 0 = Cell16, index 15 = Cell1
-    
-    uint8_t hiBytedata = 0, loByteData = 0;
-    
-		int cell_voltage = 0;
-    *totalV = 0;
-		//for reading 2 regs at once
-    uint8_t full_cell_voltage[2];
-		
-    for (uint8_t cell = 1; cell <= numCells; cell++) {
-        uint16_t hiRegAddr = BQ79616_CELL_VOLTAGE_BASE + ((16 - cell) * 2);
-        uint16_t loRegAddr = hiRegAddr + 1;
-			        
-        // Read the high byte
-				readReg(boardNum, hiRegAddr, &hiBytedata, 1, 100, FRMWRT_SGL_R);
-				// Read the low byte
-				//readReg(boardNum, loRegAddr, loByteFrame, 1, 100, FRMWRT_SGL_R);
-      
-						
-			/*
+	int cellVoltages[16] = {0}; // Index 0 = Cell16, index 15 = Cell1
+
+	uint8_t hiBytedata = 0, loByteData = 0;
+
+	int cell_voltage = 0;
+	*totalV = 0;
+	//for reading 2 regs at once
+	uint8_t full_cell_voltage[2];
+
+	for (uint8_t cell = 1; cell <= numCells; cell++) {
+		uint16_t hiRegAddr = BQ79616_CELL_VOLTAGE_BASE + ((16 - cell) * 2);
+		uint16_t loRegAddr = hiRegAddr + 1;
+
+		// Read the high byte
+		readReg(boardNum, hiRegAddr, &hiBytedata, 1, 100, FRMWRT_SGL_R);
+		// Read the low byte
+		//readReg(boardNum, loRegAddr, loByteFrame, 1, 100, FRMWRT_SGL_R);
+
+
+		/*
 				// Read the high byte
         if (readReg(boardNum, hiRegAddr, &hiBytedata, 1, 100, FRMWRT_SGL_R) < 1) {
             continue;
         }
-        
+
         // Read the low byte
         if (readReg(boardNum, loRegAddr, &loByteData, 1, 100, FRMWRT_SGL_R) < 1) {
             continue;
         }
-			*/
-				
-        
-				// Combine high and low bytes into a signed 16-bit ADC value (2's complement)
-        cell_voltage = (int)((hiBytedata << 8) | loByteData);
-        
-				
-				//alt read 2 regs at once:
-				//readReg(boardNum, hiRegAddr, full_cell_voltage, 2, 100, FRMWRT_SGL_R);
-				//cell_voltage = (int)((full_cell_voltage[0] << 8) | full_cell_voltage[1]);
-        // Store voltage in correct index
-        cellVoltages[cell - 1] = cell_voltage;
-        *totalV += cell_voltage;
-    }
-		if(*totalV == 0){
-			return 0;
-		}
-		return 1;
+		 */
+
+
+		// Combine high and low bytes into a signed 16-bit ADC value (2's complement)
+		cell_voltage = (int)((hiBytedata << 8) | loByteData);
+
+
+		//alt read 2 regs at once:
+		//readReg(boardNum, hiRegAddr, full_cell_voltage, 2, 100, FRMWRT_SGL_R);
+		//cell_voltage = (int)((full_cell_voltage[0] << 8) | full_cell_voltage[1]);
+		// Store voltage in correct index
+		cellVoltages[cell - 1] = cell_voltage;
+		*totalV += cell_voltage;
+	}
+	if(*totalV == 0){
+		return 0;
+	}
+	return 1;
 }
 
 uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *cellVoltages) { 
 	int16_t cell_voltage = 0;
-    *totalV = 0;
-    
-    uint8_t full_cell_voltage[2];
-    
-    for (uint8_t cell = 1; cell <= numCells; cell++) {
-        uint16_t hiRegAddr = BQ79616_CELL_VOLTAGE_BASE + ((16 - cell) * 2);
-        uint16_t loRegAddr = hiRegAddr + 1;
+	*totalV = 0;
 
-        // Read two registers at once
-        if (readReg(boardNum, hiRegAddr, full_cell_voltage, 2, 200, FRMWRT_SGL_R) < 1) {
-            continue;  // Skip this cell if read fails
-        }
+	uint8_t full_cell_voltage[2];
 
-        cell_voltage = (int16_t)((full_cell_voltage[0] << 8) | full_cell_voltage[1]);
+	for (uint8_t cell = 1; cell <= numCells; cell++) {
+		uint16_t hiRegAddr = BQ79616_CELL_VOLTAGE_BASE + ((16 - cell) * 2);
+		uint16_t loRegAddr = hiRegAddr + 1;
 
-        // Store voltage in correct index
-        cellVoltages[cell - 1] = cell_voltage;
-        *totalV += cell_voltage;
-    }
+		// Read two registers at once
+		if (readReg(boardNum, hiRegAddr, full_cell_voltage, 2, 200, FRMWRT_SGL_R) < 1) {
+			continue;  // Skip this cell if read fails
+		}
 
-    return (*totalV == 0) ? 0 : 1;
+		cell_voltage = (int16_t)((full_cell_voltage[0] << 8) | full_cell_voltage[1]);
+
+		// Store voltage in correct index
+		cellVoltages[cell - 1] = cell_voltage;
+		*totalV += cell_voltage;
+	}
+
+	return (*totalV == 0) ? 0 : 1;
 }
 
+
+
+
+uint8_t faultSummary=0 ;
+
+void checkFaults(void)
+{
+	faultSummary=0;
+	readReg(0, Bridge_FAULT_SUMMARY, &faultSummary, 1, 100, FRMWRT_SGL_R);
+	if(faultSummary)
+	{
+
+		if(faultSummary & 0x01)
+		{
+
+		}
+		if(faultSummary & 0x02)
+		{
+			readReg(0, Bridge_FAULT_SYS, &faultSummary, 1, 100, FRMWRT_SGL_R);
+		}
+		if(faultSummary & 0x04)
+		{
+
+
+		}
+		if(faultSummary & 0x08)
+		{
+			readReg(0, Bridge_FAULT_COMM1, &faultSummary, 1, 100, FRMWRT_SGL_R);
+			readReg(0, Bridge_FAULT_COMM2, &faultSummary, 1, 100, FRMWRT_SGL_R);
+		}
+
+		// reset COMM faults
+		// reset PWR faults
+	}
+	else
+	{}
+
+	for (uint8_t device = 1; device <= SLAVEBOARDS; device++)
+	{
+		 faultSummary=0 ;
+		readReg(device , FAULT_SUMMARY, &faultSummary, 1, 100, FRMWRT_SGL_R);
+		if(faultSummary)
+		{
+			if(faultSummary & 0x01)
+			{
+
+			}
+			if(faultSummary & 0x02)
+			{
+				//readReg(device, FAULT_SYS, &faultSummary, 1, 100, FRMWRT_SGL_R);
+			}
+			if(faultSummary & 0x04)
+			{
+
+			}
+			if(faultSummary & 0x08)
+			{
+
+			}
+			if(faultSummary & 0x10)
+			{
+				//readReg(device, Bridge_FAULT_SUMMARY, &faultSummary, 1, 100, FRMWRT_SGL_R);
+
+			}
+			if(faultSummary & 0x20)
+			{
+				readReg(device, FAULT_OTP, &faultSummary, 1, 100, FRMWRT_SGL_R);
+			}
+
+			if(faultSummary & 0x40)
+			{
+
+			}
+			if(faultSummary & 0x08)
+			{
+
+
+			}
+
+			// reset COMM faults
+			// reset PWR faults
+		}
+		else
+		{
+
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+uint8_t summary=50;
 //nfault interrupt handling
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 {
 	if(GPIO_PIN== GPIO_PIN_8)
 	{
 		//read fault summary register
-		uint8_t summary;
-		readReg(0, FAULT_SUMMARY, &summary, 1, 100, FRMWRT_SGL_R);
-		
+		checkFaults();
+
+
+
+		summary=0;
+		readReg(0, Bridge_FAULT_SUMMARY, &summary, 1, 100, FRMWRT_SGL_R);
+
 		//determine fault condition and implement appropriate handling
 		if(summary & 0x01)
 		{
 			/* PWR fault
 				read FAULT_PWR1, FAULT_PWR2, and FAULT_PWR3 registers
-			*/
-			
+			 */
+
 		}
 		if(summary & 0x02)
 		{
 			/* SYS FAULT
 				read FAULT_SYS register
-			*/
+			 */
 		}
 		if(summary & 0x04)
 		{
 			/* OVUV FAULT
 				read FAULT_OV1, FAULT_OV2, FAULT_UV1, FAULT_UV2 registers
-			*/
+			 */
 		}
 		if(summary & 0x08)
 		{
 			/* OTUT FAULT
 				read FAULT_OT1, FAULT_OT2, FAULT_UT1, FAULT_UT2 registers
-			*/
+			 */
 		}
 		if(summary & 0x10)
 		{
 			/* COMM FAULT
 				read FAULT_COMM1, FAULT_COMM2, FAULT_COMM3 registers
 				don't read registers that are masked
-			*/
-        }
-        if(summary & 0x20)
-        {
-            /* OTP FAULT
+			 */
+		}
+		if(summary & 0x20)
+		{
+			/* OTP FAULT
                 read FAULT_OTP register
-            */
-        }
-        if(summary & 0x40)
-        {
-        }
-        if(summary & 0x80)
-        {
-            /* PROT FAULT
+			 */
+		}
+		if(summary & 0x40)
+		{
+		}
+		if(summary & 0x80)
+		{
+			/* PROT FAULT
                 read FAULT_PROT1, FAULT_PROT2 register
-            */
-        } 
-    }
+			 */
+		}
+	}
 }
