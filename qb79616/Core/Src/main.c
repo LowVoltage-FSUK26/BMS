@@ -27,6 +27,7 @@
 #include "BMS_Config.h"
 #include "BMS_tests.h"
 #include "queue.h"
+#include "event_groups.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -232,7 +233,7 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
 	return voltage_uV;
 }
 
-
+extern EventGroupHandle_t uartEventGroup;
 /* USER CODE END 0 */
 
 /**
@@ -270,7 +271,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 	HAL_TIM_Base_Start(&htim2);
-
+	/* Create Event Group */
+		uartEventGroup = xEventGroupCreate();
 
 	//==================Define Queues===================//
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
@@ -279,7 +281,7 @@ int main(void)
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 10, &BmsTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 256, NULL,(UBaseType_t) 10, &BmsTaskHandle);
 #ifdef ADVANCETASK
 	xTaskCreate((TaskFunction_t) BMS_CommsTask, "BMS_Comms_Task", 256, NULL,(UBaseType_t) 9, &BmsCommsTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 5, &BmsReadTempTaskHandle);
@@ -498,22 +500,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pin : PB3 */
   GPIO_InitStruct.Pin = GPIO_PIN_3;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 1, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

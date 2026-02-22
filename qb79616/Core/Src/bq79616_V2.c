@@ -21,7 +21,7 @@
 #include "stm32f1xx_hal.h"    
 #include <string.h>
 #include "BMS_Config.h"
-
+#include "event_groups.h"
 
 
 // External UART handle (assumed to be defined and initialized in main.c)
@@ -72,7 +72,7 @@ void DELAY_init(void)
 	gTicksPerMicrosecondMod1000 = (gSysTickLoad+1) % 1000;
 }
 void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
-								{
+												{
 	uint32_t startTick = SysTick->VAL; //get start tick as soon as possible
 
 	//The asserts and division that follow dictate the minimum possible delay (smallest
@@ -92,7 +92,7 @@ void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
 		if(elapsedTicks >= delayTicks)
 			break;
 	}
-								}
+												}
 
 /* 
  * The helping functions.
@@ -541,16 +541,20 @@ int writeFrame(uint8_t bID, uint16_t wAddr, uint8_t * pData, uint8_t bLen, uint8
 
 	return bPktLen;
 }
-uint8_t tx_data = '0';
+
+/* Event Group */
+EventGroupHandle_t uartEventGroup;
+#define UART1_RX_DONE_BIT   (1 << 0)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (huart->Instance == USART1)
 	{
-		int_ack=1;
-		uint8_t tx_data = 'A';
-		HAL_UART_Transmit(&huart2, &tx_data, 1, HAL_MAX_DELAY);
+		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
+		xEventGroupSetBitsFromISR(uartEventGroup, UART1_RX_DONE_BIT, &xHigherPriorityTaskWoken);
+
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
 }
 
@@ -574,48 +578,49 @@ volatile uint32_t ms_counter = 0;
 
 int readReg(uint8_t bID, uint16_t wAddr, uint8_t* pData, uint8_t bLen, uint32_t dwTimeOut, uint8_t bWriteType) {
 	int bRes = 0;
-
-	// Buffer to receive full frame (metadata + register data + CRC)
-	// uint8_t fullBuffer[bLen + 6];
 	memset(fullBuffer, 0, sizeof(fullBuffer));
 
 	// Generate Read Frame Request
 	if (bWriteType == FRMWRT_SGL_R) {
 		readFrameReq(bID, wAddr, bLen, bWriteType);
-		// HAL_UART_Receive(&huart1, fullBuffer, bLen + 6, dwTimeOut);
-		int_ack=0;
+
 		HAL_UART_Receive_IT(&huart1, fullBuffer, bLen + 6);
 		bRes = bLen + 6;
 	} else if (bWriteType == FRMWRT_STK_R) {
 		readFrameReq(bID, wAddr, bLen, bWriteType);
-		//HAL_UART_Receive(&huart1, fullBuffer, (bLen + 6) * (TOTALBOARDS - 1), dwTimeOut);
-		int_ack=0;
+
 		HAL_UART_Receive_IT(&huart1, fullBuffer, (bLen + 6) * (TOTALBOARDS - 1));
 		bRes = (bLen + 6) * (TOTALBOARDS - 1);
 	} else if (bWriteType == FRMWRT_ALL_R) {
 		readFrameReq(bID, wAddr, bLen, bWriteType);
-		// HAL_UART_Receive(&huart1, fullBuffer, (bLen + 6) * TOTALBOARDS, dwTimeOut);
-		int_ack=0;
+
 		HAL_UART_Receive_IT(&huart1, fullBuffer, (bLen + 6) * TOTALBOARDS);
 		bRes = (bLen +6) * TOTALBOARDS;
 	} else {
 		return 0; // Invalid read type
 	}
 
-	while (int_ack==0)
+	EventBits_t bits = xEventGroupWaitBits(
+			uartEventGroup,
+			UART1_RX_DONE_BIT,
+			pdTRUE,       // Clear bit on exit
+			pdTRUE,       // Wait for all bits
+			pdMS_TO_TICKS(1000)
+	);
+
+	if(bits & UART1_RX_DONE_BIT)
 	{
-		/* code */
+		// **Check CRC for data integrity**
+		if (CRC16(fullBuffer, bLen + 6) != 0) {
+			return 0;
+		}
+		// **Extract actual register data from the received buffer**
+		memcpy(pData, &fullBuffer[4], bLen);
 	}
-
-
-	// **Check CRC for data integrity**
-	if (CRC16(fullBuffer, bLen + 6) != 0) {
-		return 0;
+	else
+	{
+		HAL_NVIC_SystemReset();
 	}
-
-	// **Extract actual register data from the received buffer**
-	memcpy(pData, &fullBuffer[4], bLen);
-
 
 	return bRes;  // Return number of valid data bytes extracted
 }
@@ -1077,9 +1082,9 @@ void Bridge_CheckFaults(void)
 				&bridge_faultSYS, 1, 100, FRMWRT_SGL_R);
 
 		if(bridge_faultSYS & (1 << 4))   // DRST
-				{
+		{
 			// Digital reset occurred
-				}
+		}
 
 		if(bridge_faultSYS & (1 << 2))   // SHUTDOWN_REC
 		{
@@ -1104,9 +1109,9 @@ void Bridge_CheckFaults(void)
 				&bridge_faultREG, 1, 100, FRMWRT_SGL_R);
 
 		if(bridge_faultREG & (1 << 0))   // FACT_CRC
-				{
+		{
 			// Factory CRC error
-				}
+		}
 
 		if(bridge_faultREG & (1 << 1))   // FACTLDERR
 		{
@@ -1230,10 +1235,10 @@ void Slave_FaultInit(uint8_t slaveID)
 
 void Stack_FaultInit(void)
 {
-	 for(uint8_t id = 1; id <= SLAVEBOARDS; id++)
-		 {
-		    Slave_FaultInit(id);
-		 }
+	for(uint8_t id = 1; id <= SLAVEBOARDS; id++)
+	{
+		Slave_FaultInit(id);
+	}
 }
 
 
