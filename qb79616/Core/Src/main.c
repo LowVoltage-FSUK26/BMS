@@ -93,6 +93,7 @@ UART_HandleTypeDef huart2;
 //TaskHandle_t defaultTaskHandle;
 
 TaskHandle_t BmsInitTaskHandle;
+TaskHandle_t BmsCanTaskHandle;
 
 #ifdef SIMPLETASK
 
@@ -152,6 +153,7 @@ EventGroupHandle_t BMS_EventGroup;
 //	RTOS Queues
 //----------------
 
+QueueHandle_t bmsCanQueue;
 QueueHandle_t bmsCmdQueue;
 QueueHandle_t bmsVoltageQueue;
 QueueHandle_t bmsTempQueue;
@@ -211,8 +213,8 @@ void BMS_ReadTempTask(void const * argument);
 void BMS_FaultTask(void const * argument);
 
 #endif
-//todo Can Task
 
+void BMS_CanTask(void const * argument);
 
 /* Receive buffer (1 byte) */
 //uint8_t rx_byte[5];
@@ -367,6 +369,7 @@ int main(void)
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
+	bmsCanQueue = xQueueCreate(5, CAN_MSG_SIZE);
 
 
 	//==================Define MUTEX===================//
@@ -379,6 +382,7 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_Can_Task", 256, NULL,(UBaseType_t) 2, &BmsCanTaskHandle);
 #ifdef EVENT_GROUP
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 256, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
@@ -748,7 +752,7 @@ void BMS_CommsTask(void const * argument)
 				break;
 
 			case CMD_READ_GPIO_ADC:
-				//todo make it read all the boards temps
+
 				buffer = readGPIOVoltage(req.BOARD_NUM, req.GPIO_NUM);
 				xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
 				break;
@@ -925,6 +929,31 @@ void BMS_FaultTask(void const * argument)
 		//read fault_summary variable and handle it
 		vTaskDelay(pdMS_TO_TICKS(500));
 	}
+}
+
+void BMS_CanTask(void const * argument)
+{
+	BMS_CAN_TxHandler.StdId = 0x123;			//Message ID
+	BMS_CAN_TxHandler.ExtId = 0x00;				//Message ID extension for CAN extend
+	BMS_CAN_TxHandler.IDE = CAN_ID_STD;  		//CAN ID is 11 bits
+	BMS_CAN_TxHandler.RTR = CAN_RTR_DATA;		//Set RTR bit to 0(sends data)
+	BMS_CAN_TxHandler.DLC = CAN_MSG_SIZE;		//Data sent is 1 bytes
+
+	for(;;)
+	{
+
+		BMS_CAN_TxData[0] = 0xF1;
+		if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, BMS_CAN_TxData, &TxMailbox) == HAL_OK)
+		{
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+			vTaskDelay(pdMS_TO_TICKS(100));
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+			vTaskDelay(pdMS_TO_TICKS(100));
+		}
+
+		vTaskDelay(pdMS_TO_TICKS(100));
+	}
+
 }
 
 

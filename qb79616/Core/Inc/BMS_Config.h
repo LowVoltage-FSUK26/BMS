@@ -28,6 +28,14 @@
 #define SLAVEBOARDS	(TOTALBOARDS - 1)
 #define Thermistor_GPIO 8
 
+
+/* ------------------------------------
+     BMS Configuration MACROS
+   ------------------------------------
+*/
+#define CAN_MSG_SIZE		1		//Size in bytes
+
+
 //---------------------
 //RTOS Design MODE
 //---------------------
