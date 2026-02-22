@@ -64,10 +64,10 @@
 //RTOS MACROS
 //--------------------
 #define NOTIFY_BMS_INIT_DONE   	(1U << 0)
-#define NOTIFY_BMS_GOT_MSG		(1U << 1)
-#define NOTIFY_BMS_GOT_VOLT		(1U << 1)
-#define NOTIFY_BMS_GOT_TEMP		(1U << 2)
-#define NOTIFY_BMS_GOT_FS		(1U << 3)
+#define NOTIFY_BMS_GOT_MSG		(1U << 1)	//General Message
+#define NOTIFY_BMS_GOT_VOLT		(1U << 2)
+#define NOTIFY_BMS_GOT_TEMP		(1U << 3)
+#define NOTIFY_BMS_GOT_FS		(1U << 4)
 
 
 
@@ -114,6 +114,20 @@ TaskHandle_t BmsFaultTaskHandle;
 #endif
 #endif
 
+//-------------------------
+//Reading Variables
+//-------------------------
+//Private user Variables
+
+uint8_t received_data1 = 0;
+uint8_t received_data2 = 0;
+
+float battery_volt = 0;
+extern int cellVoltages_board[SLAVEBOARDS][16];
+
+float gpio8_voltage = 1.11;
+
+
 //----------------
 //RTOS EVENTGroup Bits
 //----------------
@@ -143,26 +157,6 @@ SemaphoreHandle_t UART_MUTEX;
 //Fault Variables
 //----------------
 uint8_t fault_summary = 0;
-
-//Private user Variables
-uint8_t received_data1 = 0;
-uint8_t received_data2 = 0;
-uint8_t Buffer[5];
-
-float final_value = 0;
-extern int cellVoltages_board[SLAVEBOARDS][16];
-
-int16_t raw_value;
-uint8_t hi, lo;
-
-float gpio1_voltage=5;
-float gpio8_voltage=5.254654;
-float tsref_voltage = 0; // Example: 5V in μV
-float rntc=2.56;
-
-extern volatile uint32_t ms_counter ;
-
-
 
 
 /* USER CODE END PV */
@@ -265,8 +259,9 @@ float readTSREFVoltage(void) {
 
 
 	float voltage_uV;
-
+	int16_t raw_value;
 	uint8_t buffer[1];
+	uint8_t hi, lo;
 
 	hi = readReg(1, TSREF_HI, buffer, 1, 0, FRMWRT_SGL_R);
 	lo = readReg(1, TSREF_LO, buffer, 1, 0, FRMWRT_SGL_R);
@@ -281,13 +276,13 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
 
 	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
 	uint16_t buffer[2];
+	int16_t raw_value = 0;
 	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
 	{
 
 		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R);
 		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
 
-		//raw_value = (int16_t)((hi << 8) | lo);
 		raw_value =((buffer[1] << 8) | buffer[2]);
 		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
 	}
@@ -380,7 +375,7 @@ int main(void)
 	while (1)
 	{
 		//		HAL_Delay(10);
-		//		final_value = test2();
+		//		battery_volt = test2();
 		//
 		//
 		//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
@@ -657,7 +652,7 @@ void BMS_Diagnostic(void const * argument)
 	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
 	for(;;)
 	{
-		final_value = test2();
+		battery_volt = test2();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		vTaskDelay(100);
@@ -732,12 +727,12 @@ void BMS_CellVoltageTask(void const * argument)
 		//todo Optimize wait delay to be dynamic to the number of slaves
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
-		if(xQueueReceive(bmsVoltageQueue, &final_value, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
 	{
 			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
 
 			char numBuf[12];
-			itoa((uint32_t)final_value, numBuf, 10);
+			itoa((uint32_t)battery_volt, numBuf, 10);
 
 			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
 			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
