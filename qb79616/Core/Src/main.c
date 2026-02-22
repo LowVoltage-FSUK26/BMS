@@ -79,6 +79,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+CAN_HandleTypeDef hcan;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
@@ -115,7 +117,7 @@ TaskHandle_t BmsFaultTaskHandle;
 #endif
 
 //-------------------------
-//Reading Variables
+//	Reading Variables
 //-------------------------
 //Private user Variables
 
@@ -127,6 +129,9 @@ extern int cellVoltages_board[SLAVEBOARDS][16];
 
 float gpio8_voltage = 1.11;
 
+//------------------------
+//    CAN Variables
+//-----------------------
 
 //----------------
 //RTOS EVENTGroup Bits
@@ -138,7 +143,7 @@ const EventBits_t BMS_INIT_DONE_BIT = (1 << 0);
 EventGroupHandle_t BMS_EventGroup;
 
 //----------------
-//RTOS Queues
+//	RTOS Queues
 //----------------
 
 QueueHandle_t bmsCmdQueue;
@@ -147,14 +152,14 @@ QueueHandle_t bmsTempQueue;
 
 
 //----------------
-//RTOS MUTEX
+//	RTOS MUTEX
 //----------------
 #ifdef EVENT_GROUP
 SemaphoreHandle_t UART_MUTEX;
 #endif
 
 //----------------
-//Fault Variables
+//	Fault Variables
 //----------------
 uint8_t fault_summary = 0;
 
@@ -167,6 +172,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_CAN_Init(void);
 /* USER CODE BEGIN PFP */
 
 //Declare Tasks Entery point
@@ -324,6 +330,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_CAN_Init();
   /* USER CODE BEGIN 2 */
 
 	HAL_TIM_Base_Start(&htim2);
@@ -432,6 +439,43 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief CAN Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CAN_Init(void)
+{
+
+  /* USER CODE BEGIN CAN_Init 0 */
+
+  /* USER CODE END CAN_Init 0 */
+
+  /* USER CODE BEGIN CAN_Init 1 */
+
+  /* USER CODE END CAN_Init 1 */
+  hcan.Instance = CAN1;
+  hcan.Init.Prescaler = 18;
+  hcan.Init.Mode = CAN_MODE_NORMAL;
+  hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
+  hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
+  hcan.Init.TimeTriggeredMode = DISABLE;
+  hcan.Init.AutoBusOff = DISABLE;
+  hcan.Init.AutoWakeUp = DISABLE;
+  hcan.Init.AutoRetransmission = DISABLE;
+  hcan.Init.ReceiveFifoLocked = DISABLE;
+  hcan.Init.TransmitFifoPriority = DISABLE;
+  if (HAL_CAN_Init(&hcan) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CAN_Init 2 */
+
+  /* USER CODE END CAN_Init 2 */
+
 }
 
 /**
