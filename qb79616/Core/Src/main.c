@@ -132,6 +132,12 @@ float gpio8_voltage = 1.11;
 //------------------------
 //    CAN Variables
 //-----------------------
+CAN_TxHeaderTypeDef BMS_CAN_TxHandler;
+CAN_RxHeaderTypeDef BMS_CAN_RxHandler;
+uint32_t TxMailbox;
+uint8_t BMS_CAN_TxData[8];
+uint8_t BMS_CAN_RxData[8];
+
 
 //----------------
 //RTOS EVENTGroup Bits
@@ -241,6 +247,15 @@ void BMS_FaultTask(void const * argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData) != HAL_OK)
+	{
+		return; // Error
+	}
+
+}
+
 
 //// External functions to access the device
 //extern void writeReg(uint8_t bID, uint16_t wAddr, uint8_t data, uint8_t len, uint8_t writeType);
@@ -334,6 +349,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 	HAL_TIM_Base_Start(&htim2);
+
+	BMS_Can_Init();
 
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();

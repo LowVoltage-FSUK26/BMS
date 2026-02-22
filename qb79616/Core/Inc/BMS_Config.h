@@ -56,5 +56,11 @@ void Bridge_CheckFaults(void);
 void Stack_FaultInit(void);
 void Stack_CheckFaultSummary(void);
 
+/* ------------------------------------
+     BMS Configuration Prototypes
+   ------------------------------------
+*/
+void BMS_Can_Init(void);
+
 
 #endif /* INC_BMS_CONFIG_H_ */
