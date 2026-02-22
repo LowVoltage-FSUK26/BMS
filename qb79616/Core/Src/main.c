@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "BMS_Config.h"
 #include "BMS_tests.h"
 #include "queue.h"
@@ -285,7 +286,7 @@ int main(void)
 #ifdef ADVANCETASK
 	xTaskCreate((TaskFunction_t) BMS_CommsTask, "BMS_Comms_Task", 256, NULL,(UBaseType_t) 9, &BmsCommsTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 5, &BmsReadTempTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 5, &BmsCellVoltageTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 512, NULL,(UBaseType_t) 5, &BmsCellVoltageTaskHandle);
 #else
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 5, &BMS_DiagnosticHandle);
 #endif
@@ -646,12 +647,19 @@ void BMS_CellVoltageTask(void const * argument)
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_MSG, NULL, pdMS_TO_TICKS(100));
 
 		if(xQueueReceive(bmsVoltageQueue, &final_value, (TickType_t)10) == pdTRUE)
-		{
-			//process Voltage reading
+	{
+			HAL_UART_Transmit(&huart2, (uint8_t*)"Received: ", 10, HAL_MAX_DELAY);
+
+			char numBuf[12];
+			itoa((uint32_t)final_value, numBuf, 10);
+
+			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
+			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
 		}
 		else
 		{
 			//indicate message is not received
+			HAL_UART_Transmit(&huart2, (uint8_t*)"not Received", 12, HAL_MAX_DELAY);
 		}
 		vTaskDelay(pdMS_TO_TICKS(50));
 	}
