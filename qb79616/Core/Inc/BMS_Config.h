@@ -27,6 +27,8 @@
 #define TOTALBOARDS 3       //boards in stack (including the bridge)
 #define SLAVEBOARDS	(TOTALBOARDS - 1)
 #define Thermistor_GPIO 8
+#define BRIDGEUART	1
+#define DEBUGUART	2
 
 //---------------------
 //RTOS Design MODE
