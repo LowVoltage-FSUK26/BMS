@@ -794,13 +794,15 @@ void BMS_CellVoltageTask(void const * argument)
 
 		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
 	{
-			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
-
-			char numBuf[12];
-			itoa((uint32_t)battery_volt, numBuf, 10);
-
-			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
-			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+			uint8_t casted_volt = (uint8_t)battery_volt;
+			xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
+//			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
+//
+//			char numBuf[12];
+//			itoa((uint32_t)battery_volt, numBuf, 10);
+//
+//			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
+//			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
 		}
 		else
 		{
@@ -942,16 +944,18 @@ void BMS_CanTask(void const * argument)
 	for(;;)
 	{
 
-		BMS_CAN_TxData[0] = 0xF1;
-		if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, BMS_CAN_TxData, &TxMailbox) == HAL_OK)
+		if(xQueueReceive(bmsCanQueue, BMS_CAN_TxData, (TickType_t)10) == pdTRUE)
 		{
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-			vTaskDelay(pdMS_TO_TICKS(100));
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, BMS_CAN_TxData, &TxMailbox) == HAL_OK)
+			{
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+				vTaskDelay(pdMS_TO_TICKS(100));
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+				vTaskDelay(pdMS_TO_TICKS(100));
+			}
+
 			vTaskDelay(pdMS_TO_TICKS(100));
 		}
-
-		vTaskDelay(pdMS_TO_TICKS(100));
 	}
 
 }
