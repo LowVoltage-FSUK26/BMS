@@ -804,17 +804,20 @@ uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType){
 
 	if(BID > SLAVEBOARDS)
-		return 0;		// Invalid Board ID
+		return 2;		// Invalid Board ID
 
 	if (GPIO_NUM < 1 || GPIO_NUM > 8)
-	    return 0;   	// Invalid GPIO
+	    return 3;   	// Invalid GPIO
 
 	if (GPIO_MODE > 0x07)
-	    return 0;		// Value must fit in 3 bits
+	    return 4;		// Value must fit in 3 bits
+
+	if ((bWriteType != FRMWRT_SGL_W) || (bWriteType != FRMWRT_STK_W) )
+	    return 5;		// Invalid bWriteType
 
 	uint8_t reg_addr = BQ79616_GPIO_CONF1 + ((GPIO_NUM - 1)/2);
 	uint8_t reg_val = (GPIO_MODE << ((GPIO_NUM % 2) * 3));
-	writeReg(BID, reg_addr, reg_val, 1, bWriteType);
+	writeReg((bWriteType == FRMWRT_SGL_W)?BID : 0, reg_addr, reg_val, 1, bWriteType);
 	return 1; 			//Correct Config
 }
 
@@ -934,7 +937,7 @@ uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *
 	return (*totalV == 0) ? 0 : 1;
 }
 
-float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
+float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 
 	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
 	int16_t raw_value = 0;
@@ -947,6 +950,7 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
 
 		//raw_value = (int16_t)((hi << 8) | lo);
 		raw_value =((buffer[1] << 8) | buffer[2]);
+		*raw_value_ptr = raw_value;
 		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
 	}
 	return voltage_uV;

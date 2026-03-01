@@ -142,6 +142,7 @@ uint8_t Buffer[5];
 
 float final_value = 0;
 extern int cellVoltages_board[SLAVEBOARDS][16];
+uint16_t GpioReadings[SLAVEBOARDS];
 
 uint8_t hi, lo;
 
@@ -583,7 +584,7 @@ void BMS_Diagnostic(void const * argument)
 
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			gpio8_voltage = readGPIOVoltage(i, 8);
+			gpio8_voltage = readGPIOVoltage(i, 8, &(GpioReadings[i]));
 			vTaskDelay(50);
 		}
 		vTaskDelay(50);
@@ -610,7 +611,7 @@ void BMS_MonitorTask(void const * argument)
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			buffer = readGPIOVoltage(i, Thermistor_GPIO);
+			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i]));
 			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
 			vTaskDelay(pdMS_TO_TICKS(5));
 		}
