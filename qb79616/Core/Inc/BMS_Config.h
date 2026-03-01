@@ -30,6 +30,13 @@
 #define BRIDGEUART	1
 #define DEBUGUART	2
 
+//---------------
+//	Topology
+//---------------
+
+//#define RING
+#define CHAIN
+
 //---------------------
 //RTOS Design MODE
 //---------------------
