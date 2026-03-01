@@ -124,6 +124,7 @@ TaskHandle_t BmsFaultTaskHandle;
 
 uint8_t received_data1 = 0;
 uint8_t received_data2 = 0;
+uint8_t init_done = 0;
 
 float battery_volt = 0;
 extern int cellVoltages_board[SLAVEBOARDS][16];
@@ -303,8 +304,14 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
 	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
 	{
 
-		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R);
-		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
+		if(readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R) <1)
+		{
+			return;
+		}
+		if(readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R) < 1)
+		{
+			return;
+		}
 
 		raw_value =((buffer[1] << 8) | buffer[2]);
 		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
@@ -675,8 +682,9 @@ void BMS_Init(void const * argument)
 
 	Wake79600_RTOS();
 
-	Bridge_AutoAddress();
-
+	//Bridge_AutoAddress();
+	AutoAddress_Ring();
+	init_done = 1;
 	vTaskDelay(10);
 	enableTSREF();
 	configureGPIO8_ADC();

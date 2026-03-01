@@ -1,4 +1,4 @@
- /* stm32_bq79616.c
+/* stm32_bq79616.c
  *
  * This code is adapted from a TI sample for the BQ79616 battery monitoring IC.
  * It has been modified to use the STM32 HAL library (for the Blue Pill board)
@@ -27,6 +27,7 @@
 // External UART handle (assumed to be defined and initialized in main.c)
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2; //huart2 is used only for debugging
+extern uint8_t init_done;
 
 // Global variables (adjust sizes as needed)
 uint8_t response_frame2[(MAXBYTES+6)*TOTALBOARDS];
@@ -72,7 +73,7 @@ void DELAY_init(void)
 	gTicksPerMicrosecondMod1000 = (gSysTickLoad+1) % 1000;
 }
 void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
-												{
+																										{
 	uint32_t startTick = SysTick->VAL; //get start tick as soon as possible
 
 	//The asserts and division that follow dictate the minimum possible delay (smallest
@@ -92,7 +93,7 @@ void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
 		if(elapsedTicks >= delayTicks)
 			break;
 	}
-												}
+																										}
 
 /* 
  * The helping functions.
@@ -364,18 +365,34 @@ void Bridge_AutoAddress(void)
 //Auto Addressing sequence for Ring Configuration
 void AutoAddress_Ring(void)
 {
-	AutoAddress();
+	Bridge_AutoAddress();
 
-	//Reverse Communication Direction of Base
+	//Single Device write Reverse Bridge Communication Direction
 	writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_SGL_W);
 
-	//Revese Communication Direction for the reset of chain
-	writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_ALL_R);
+	//dummy stack write data 0x00 to registers 0x343 to 0x34A (sync up internal DLL)
+	writeReg(0, OTP_ECC_DATAIN1, 0X00, 1, FRMWRT_STK_W);	//Modification: changed FRMWRT_ALL_W to FRMWRT_STK_W
+	writeReg(0, OTP_ECC_DATAIN2, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN3, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN4, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN5, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN6, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN7, 0X00, 1, FRMWRT_STK_W);
+	writeReg(0, OTP_ECC_DATAIN8, 0X00, 1, FRMWRT_STK_W);
+
+	//Broadcast Write 0x80 to address 0x309 (BQ79616_CONTROL1)
+	writeReg(0, BQ79616_CONTROL1, 0x80, 1, FRMWRT_ALL_W);
+
+	//brdcast Write 0x02 to address 0x308
+	writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W);
+
+	//ENABLE AUTO ADDRESSING MODE
+	writeReg(0, BQ79616_CONTROL1, 0X01, 1, FRMWRT_ALL_W);
 
 	//SET ADDRESSES FOR EVERY BOARD
 	for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
 	{
-		writeReg(0, BQ79616_DIR1_ADDR, currentBoard, 1, FRMWRT_ALL_W);
+		writeReg(0, BQ79616_DIR0_ADDR, currentBoard, 1, FRMWRT_ALL_W);
 	}
 
 	writeReg(0, BQ79616_COMM_CTRL, 0x02, 1, FRMWRT_ALL_W); //set everything as a stack device first
@@ -390,28 +407,31 @@ void AutoAddress_Ring(void)
 		writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
 	}
 
+	for(currentBoard=1; currentBoard<TOTALBOARDS; currentBoard++)
+	{
+		readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 1000, FRMWRT_SGL_R);
+
+	}
+
 	//return to original Communication Direction of Base
 	writeReg(0, BQ79616_CONTROL1, (0 << 7), 1, FRMWRT_SGL_W);
 
 	//return to original Communication Direction for the reset of chain
-	writeReg(0, BQ79616_CONTROL1, (0 << 7), 1, FRMWRT_ALL_R);
+	writeReg(0, BQ79616_CONTROL1, (0 << 7), 1, FRMWRT_ALL_W);
+
+
+	//OPTIONAL: read register address 0x2001 and verify that the value is 0x14
+	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 
 	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-	//    readReg(0, OTP_ECC_DATAIN1, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//    readReg(0, OTP_ECC_DATAIN2, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//    readReg(0, OTP_ECC_DATAIN3, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//    readReg(0, OTP_ECC_DATAIN4, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//    readReg(0, OTP_ECC_DATAIN5, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//    readReg(0, OTP_ECC_DATAIN6, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//    readReg(0, OTP_ECC_DATAIN7, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//    readReg(0, OTP_ECC_DATAIN8, response_frame2, 1, 0, FRMWRT_ALL_R);
-	//
-	//     //OPTIONAL: read back all device addresses
-	//    for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-	//    {
-	//        readReg(currentBoard, BQ79616_DIR0_ADDR, response_frame2, 1, 0, FRMWRT_SGL_R);
-	//
-	//    }
+	readReg(0, OTP_ECC_DATAIN1, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN2, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN3, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN4, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN5, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN6, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN7, response_frame2, 1, 0, FRMWRT_ALL_R);
+	readReg(0, OTP_ECC_DATAIN8, response_frame2, 1, 0, FRMWRT_ALL_R);
 
 	//RESET ANY COMM FAULT CONDITIONS FROM STARTUP
 	writeReg(0, FAULT_RST2, 0x03, 1, FRMWRT_ALL_W);
@@ -612,7 +632,21 @@ int readReg(uint8_t bID, uint16_t wAddr, uint8_t* pData, uint8_t bLen, uint32_t 
 	}
 	else
 	{
-		HAL_NVIC_SystemReset();
+		if(init_done == 0)
+		{
+			HAL_NVIC_SystemReset();
+		}
+		else if(init_done == 1)
+		{
+			//Reverse original Communication Direction of Base
+			writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_SGL_W);
+
+			//Reverse original Communication Direction for the reset of chain
+			writeReg(0, BQ79616_CONTROL1, (1 << 7), 1, FRMWRT_ALL_W);
+
+		}
+
+
 	}
 
 	return bRes;  // Return number of valid data bytes extracted
