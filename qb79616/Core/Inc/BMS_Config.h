@@ -30,6 +30,7 @@
 #define BRIDGEUART	1
 #define DEBUGUART	2
 
+
 //---------------
 //	Topology
 //---------------
@@ -48,6 +49,8 @@
      BMS Configuration Typedefs
    ------------------------------------
 */
+
+
 typedef enum {
     CMD_READ_CELL_VOLTAGES,
     CMD_READ_GPIO_ADC,

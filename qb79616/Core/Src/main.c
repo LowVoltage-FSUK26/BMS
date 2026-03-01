@@ -52,7 +52,6 @@
 #define GPIO1_HI_REG    GPIO1_HI
 #define GPIO1_LO_REG    GPIO1_LO
 
-#define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
 #define R1              10000 // Pull-up resistor for thermistor in ohms
 
 #define DIETEMP1_HI_REG DIETEMP1_HI  // High byte register of Die Temperature
@@ -144,7 +143,6 @@ uint8_t Buffer[5];
 float final_value = 0;
 extern int cellVoltages_board[SLAVEBOARDS][16];
 
-int16_t raw_value;
 uint8_t hi, lo;
 
 float gpio1_voltage=5;
@@ -193,32 +191,6 @@ void BMS_FaultTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
-// Function to configure GPIO1 as ADC input
-//todo Make it GPIO Generic
-void configureGPIO8_ADC(void) {
-	writeReg(1, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
-	writeReg(2, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
-}
-
-
-float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
-
-	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
-	uint16_t buffer[2];
-	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
-	{
-
-		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R);
-		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
-
-		//raw_value = (int16_t)((hi << 8) | lo);
-		raw_value =((buffer[1] << 8) | buffer[2]);
-		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
-	}
-	return voltage_uV;
-}
 
 extern EventGroupHandle_t uartEventGroup;
 /* USER CODE END 0 */
@@ -570,7 +542,7 @@ void BMS_Init(void const * argument)
 #endif
 
 	vTaskDelay(10);
-	configureGPIO8_ADC();
+	configureGPIO(8, BQ79616_GPIO_ADC_INPUT, 0, FRMWRT_ALL_W);
 
 	//=============================
 	//Initializing Daisy Chain ADCs
