@@ -185,7 +185,7 @@ void BMS_ReadTempTask(void const * argument);
 void BMS_FaultTask(void const * argument);
 
 #endif
-//todo Can Task
+//todo do Can Task
 
 
 /* USER CODE END PFP */
