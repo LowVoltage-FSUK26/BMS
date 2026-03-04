@@ -193,6 +193,13 @@ void BMS_FaultTask(void const * argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void configureGPIO8_ADC(void) {
+       writeReg(1, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
+       writeReg(2, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
+}
+
+
+
 extern EventGroupHandle_t uartEventGroup;
 /* USER CODE END 0 */
 
@@ -263,7 +270,7 @@ int main(void)
 #ifdef SIMPLETASK
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
 #elif defined(EVENT_GROUP)
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 256, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 512, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
@@ -543,8 +550,8 @@ void BMS_Init(void const * argument)
 #endif
 
 	vTaskDelay(10);
-	configureGPIO(8, BQ79616_GPIO_ADC_INPUT, 0, FRMWRT_ALL_W);
-
+//	configureGPIO(Thermistor_GPIO, BQ79616_GPIO_ADC_OTUT_INPUT, 0, FRMWRT_STK_W);
+	configureGPIO8_ADC();
 	//=============================
 	//Initializing Daisy Chain ADCs
 	//=============================

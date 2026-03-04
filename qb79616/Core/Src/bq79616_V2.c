@@ -803,7 +803,7 @@ uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 // Function to configure GPIO1 as specified input
 uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType){
 
-	if(BID > SLAVEBOARDS)
+	if(BID >= SLAVEBOARDS)
 		return 2;		// Invalid Board ID
 
 	if (GPIO_NUM < 1 || GPIO_NUM > 8)
@@ -812,7 +812,7 @@ uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t
 	if (GPIO_MODE > 0x07)
 	    return 4;		// Value must fit in 3 bits
 
-	if ((bWriteType != FRMWRT_SGL_W) || (bWriteType != FRMWRT_STK_W) )
+	if ((bWriteType != FRMWRT_SGL_W) && (bWriteType != FRMWRT_STK_W) )
 	    return 5;		// Invalid bWriteType
 
 	uint8_t reg_addr = BQ79616_GPIO_CONF1 + ((GPIO_NUM - 1)/2);
@@ -936,6 +936,7 @@ uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *
 
 	return (*totalV == 0) ? 0 : 1;
 }
+
 
 float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 
