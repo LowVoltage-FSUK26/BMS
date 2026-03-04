@@ -193,11 +193,6 @@ void BMS_FaultTask(void const * argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void configureGPIO8_ADC(void) {
-       writeReg(1, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
-       writeReg(2, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
-}
-
 
 
 extern EventGroupHandle_t uartEventGroup;
@@ -550,8 +545,8 @@ void BMS_Init(void const * argument)
 #endif
 
 	vTaskDelay(10);
-//	configureGPIO(Thermistor_GPIO, BQ79616_GPIO_ADC_OTUT_INPUT, 0, FRMWRT_STK_W);
-	configureGPIO8_ADC();
+	configureGPIO(Thermistor_GPIO, BQ79616_GPIO_ADC_OTUT_INPUT, 0, FRMWRT_STK_W);
+//	configureGPIO8_ADC();
 	//=============================
 	//Initializing Daisy Chain ADCs
 	//=============================
@@ -618,7 +613,7 @@ void BMS_MonitorTask(void const * argument)
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i]));
+			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
 			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
 			vTaskDelay(pdMS_TO_TICKS(5));
 		}

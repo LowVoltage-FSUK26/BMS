@@ -816,7 +816,7 @@ uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t
 	    return 5;		// Invalid bWriteType
 
 	uint8_t reg_addr = BQ79616_GPIO_CONF1 + ((GPIO_NUM - 1)/2);
-	uint8_t reg_val = (GPIO_MODE << ((GPIO_NUM % 2) * 3));
+	uint8_t reg_val = (GPIO_MODE << (!(GPIO_NUM % 2) * 3));
 	writeReg((bWriteType == FRMWRT_SGL_W)?BID : 0, reg_addr, reg_val, 1, bWriteType);
 	return 1; 			//Correct Config
 }
