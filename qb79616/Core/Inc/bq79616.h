@@ -18,9 +18,12 @@
 #define FRMWRT_ALL_W	0x50    //broadcast WRITE
 #define FRMWRT_REV_ALL_W 0x60   //broadcast WRITE reverse direction
 
+#define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
+
 #define OV_THR 0x23 		//4200mV= 4.2V
 #define UV_THR 0x22 		//2900mV= 2.9V
 #define OVUV_MODE 0b01	//round robin mode on all active cells
+
 
 #define OT_THR 0b000		// default values
 #define UT_THR 0b111 		//66% of TSERF voltage
@@ -31,6 +34,19 @@
 #define BALANCING_THRESHOLD 0.020  // 20mV threshold to start balancing
 #define SOC_BALANCING_START 80     // Only balance when SOC > 80%
 #define TEMP_LIMIT 45.0            // Stop balancing if temperature > 45�C
+
+typedef enum
+{
+    BQ79616_GPIO_DISABLED                 = 0b000, // High-Z
+    BQ79616_GPIO_ADC_OTUT_INPUT           = 0b001,
+    BQ79616_GPIO_ADC_INPUT                = 0b010,
+    BQ79616_GPIO_DIGITAL_INPUT            = 0b011,
+    BQ79616_GPIO_OUTPUT_HIGH              = 0b100,
+    BQ79616_GPIO_OUTPUT_LOW               = 0b101,
+    BQ79616_GPIO_ADC_INPUT_PULLUP         = 0b110,
+    BQ79616_GPIO_ADC_INPUT_PULLDOWN       = 0b111
+
+} BQ79616_GPIO_Config_t;
 
 
 /* ------------------------------------
@@ -70,6 +86,7 @@ uint16_t CRC16(uint8_t *pBuf, int nLen);
 void RunCB();
 uint8_t readCellVoltages(uint8_t boardNum, uint8_t numCells, int *totalV);
 uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *cellVoltages);
+float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr);
 
 /* ------------------------------------
      3. Configurations functions
@@ -77,6 +94,7 @@ uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *
 */
 uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells);
 uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors);
+uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType);
 void nfault_enable();
 void ResetAllFaults(uint8_t bID, uint8_t bWriteType);
 void MaskAllFaults(uint8_t bID, uint8_t bWriteType);

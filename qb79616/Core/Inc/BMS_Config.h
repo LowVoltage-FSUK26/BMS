@@ -27,6 +27,16 @@
 #define TOTALBOARDS 3       //boards in stack (including the bridge)
 #define SLAVEBOARDS	(TOTALBOARDS - 1)
 #define Thermistor_GPIO 8
+#define BRIDGEUART	1
+#define DEBUGUART	2
+
+
+//---------------
+//	Topology
+//---------------
+
+//#define RING
+#define CHAIN
 
 
 /* ------------------------------------
@@ -47,6 +57,8 @@
      BMS Configuration Typedefs
    ------------------------------------
 */
+
+
 typedef enum {
     CMD_READ_CELL_VOLTAGES,
     CMD_READ_GPIO_ADC,

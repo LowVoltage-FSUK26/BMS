@@ -43,7 +43,6 @@
 
 // Example register addresses (replace with actual addresses from datasheet)
 #define CONTROL2        BQ79616_CONTROL2
-#define TSREF_EN_BIT    0x01
 
 #define GPIO_CONF1      BQ79616_GPIO_CONF1
 #define GPIO1_ADC_BIT   0x12
@@ -53,7 +52,6 @@
 #define GPIO1_HI_REG    GPIO1_HI
 #define GPIO1_LO_REG    GPIO1_LO
 
-#define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
 #define R1              10000 // Pull-up resistor for thermistor in ohms
 
 #define DIETEMP1_HI_REG DIETEMP1_HI  // High byte register of Die Temperature
@@ -99,22 +97,14 @@ TaskHandle_t BmsCanTaskHandle;
 
 TaskHandle_t BMS_DiagnosticHandle;
 
-#else
-
-TaskHandle_t BmsCellVoltageTaskHandle;
-TaskHandle_t BmsReadTempTaskHandle;
-
-#ifdef ADVANCEDTASK
-
-TaskHandle_t BmsCommsTaskHandle;
-
 #elif defined(EVENT_GROUP)
 
 TaskHandle_t BmsMonitorTaskHandle;
 TaskHandle_t BmsCommandTaskHandle;
+TaskHandle_t BmsCellVoltageTaskHandle;
+TaskHandle_t BmsReadTempTaskHandle;
 TaskHandle_t BmsFaultTaskHandle;
 
-#endif
 #endif
 
 //-------------------------
@@ -128,8 +118,11 @@ uint8_t init_done = 0;
 
 float battery_volt = 0;
 extern int cellVoltages_board[SLAVEBOARDS][16];
+uint16_t GpioReadings[SLAVEBOARDS];
 
-float gpio8_voltage = 1.11;
+float gpio1_voltage=5;
+float gpio8_voltage=5.254654;
+
 
 //------------------------
 //    CAN Variables
@@ -193,18 +186,11 @@ void BMS_Init(void const * argument);
 
 void BMS_Diagnostic(void const * argument);
 
-#else
-#ifdef ADVANCETASK
-
-void BMS_CommsTask(void const * argument);
-
 #elif defined(EVENT_GROUP)
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument);
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
 void BMS_CommadTask(void const * argument);
-#endif
-
 //Sends a read voltage cmd to BMS queue to read cell voltages
 void BMS_CellVoltageTask(void const * argument);
 //Sends a read voltage cmd to BMS queue to read cell temp
@@ -260,65 +246,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 }
 
 
-//// External functions to access the device
-//extern void writeReg(uint8_t bID, uint16_t wAddr, uint8_t data, uint8_t len, uint8_t writeType);
-//extern uint8_t readReg(uint8_t bID, uint16_t wAddr, uint8_t* pData, uint8_t len, uint32_t timeout, uint8_t readType);
-
-// Function to enable TSREF
-void enableTSREF(void) {
-	writeReg(1, BQ79616_CONTROL2, 0x01, 1,FRMWRT_SGL_W);
-	writeReg(2, BQ79616_CONTROL2, 0x01, 1,FRMWRT_SGL_W);
-	vTaskDelay(10); // Wait 1.35ms for TSREF to stabilize
-}
-
-// Function to configure GPIO1 as ADC input
-void configureGPIO8_ADC(void) {
-	writeReg(1, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
-	writeReg(2, BQ79616_GPIO_CONF4, 0x10, 1, FRMWRT_SGL_W);
-}
-
-
-// Function to read TSERF voltage in μV  !!!!!!!! Incorrect Function !!!!
-float readTSREFVoltage(void) {
-
-
-	float voltage_uV;
-	int16_t raw_value;
-	uint8_t buffer[1];
-	uint8_t hi, lo;
-
-	hi = readReg(1, TSREF_HI, buffer, 1, 0, FRMWRT_SGL_R);
-	lo = readReg(1, TSREF_LO, buffer, 1, 0, FRMWRT_SGL_R);
-
-	raw_value = (int16_t)((hi << 8) | lo);
-	voltage_uV = raw_value * VLSB_GPIO;
-
-	return voltage_uV;
-}
-
-float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM) {
-
-	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
-	uint16_t buffer[2];
-	int16_t raw_value = 0;
-	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
-	{
-
-		if(readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R) <1)
-		{
-			return;
-		}
-		if(readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R) < 1)
-		{
-			return;
-		}
-
-		raw_value =((buffer[1] << 8) | buffer[2]);
-		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
-	}
-	return voltage_uV;
-}
-
+UBaseType_t uxHighWaterMark;
 extern EventGroupHandle_t uartEventGroup;
 /* USER CODE END 0 */
 
@@ -369,7 +297,7 @@ int main(void)
 		while(1);
 	}
 	/* Create Event Group */
-		uartEventGroup = xEventGroupCreate();
+	uartEventGroup = xEventGroupCreate();
 
 	//==================Define Queues===================//
 
@@ -386,18 +314,16 @@ int main(void)
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_Can_Task", 256, NULL,(UBaseType_t) 2, &BmsCanTaskHandle);
-#ifdef EVENT_GROUP
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 256, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
+
+#ifdef SIMPLETASK
+	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 128, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
+#elif defined(EVENT_GROUP)
+	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 128, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-#elif defined(ADVANCETASK)
-	xTaskCreate((TaskFunction_t) BMS_CommsTask, "BMS_Comms_Task", 256, NULL,(UBaseType_t) 3, &BmsCommsTaskHandle);
-#elif defined(SIMPLETASK)
-	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
+	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
 #endif
 
 
@@ -409,18 +335,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		//		HAL_Delay(10);
-		//		battery_volt = test2();
-		//
-		//
-		//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		//		HAL_Delay(200);
-		//		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		//		HAL_Delay(200);
-		//
-		//		gpio8_voltage = readGPIOVoltage(1, 8);
-		//		HAL_Delay(1000);
-		//		gpio8_voltage = readGPIOVoltage(2, 8);
 
 
     /* USER CODE END WHILE */
@@ -682,13 +596,16 @@ void BMS_Init(void const * argument)
 
 	Wake79600_RTOS();
 
-	//Bridge_AutoAddress();
+#ifdef CHAIN
+	Bridge_AutoAddress();
+#elif defined(RING)
 	AutoAddress_Ring();
 	init_done = 1;
-	vTaskDelay(10);
-	enableTSREF();
-	configureGPIO8_ADC();
+#endif
 
+	vTaskDelay(10);
+	configureGPIO(Thermistor_GPIO, BQ79616_GPIO_ADC_OTUT_INPUT, 0, FRMWRT_STK_W);
+//	configureGPIO8_ADC();
 	//=============================
 	//Initializing Daisy Chain ADCs
 	//=============================
@@ -706,16 +623,9 @@ void BMS_Init(void const * argument)
 
 	xTaskNotify(BMS_DiagnosticHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
 
-#elif defined(ADVANCETASK)
-
-	xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-	xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-	xTaskNotify(BmsCommsTaskHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-
 #elif defined(EVENT_GROUP)
 	xEventGroupSetBits(BMS_EventGroup, BMS_INIT_DONE_BIT);
 #endif
-
 	vTaskDelete(NULL);
 
 }
@@ -734,130 +644,13 @@ void BMS_Diagnostic(void const * argument)
 
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			gpio8_voltage = readGPIOVoltage(i, 8);
+			gpio8_voltage = readGPIOVoltage(i, 8, &(GpioReadings[i]));
 			vTaskDelay(50);
 		}
 		vTaskDelay(50);
 	}
 
 
-}
-
-void BMS_CommsTask(void const * argument)
-{
-	float buffer = 0;
-	BMS_Request_t req;
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
-	for(;;)
-	{
-		if(xQueueReceive(bmsCmdQueue, &req, portMAX_DELAY) == pdTRUE)
-		{
-			switch(req.cmd)
-			{
-			case CMD_READ_CELL_VOLTAGES:
-				buffer = test2();
-				xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-				break;
-
-			case CMD_READ_GPIO_ADC:
-
-				buffer = readGPIOVoltage(req.BOARD_NUM, req.GPIO_NUM);
-				xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-				break;
-			}
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-			vTaskDelay(50);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-			vTaskDelay(50);
-
-			xTaskNotify(req.requester, NOTIFY_BMS_GOT_MSG, eSetBits);
-		}
-	}
-
-}
-
-//Sends a read voltage cmd to BMS queue to read cell voltages
-void BMS_CellVoltageTask(void const * argument)
-{
-	BMS_Request_t req;
-	req.cmd = CMD_READ_CELL_VOLTAGES;
-	req.requester = xTaskGetCurrentTaskHandle();
-
-#ifdef ADVANCETASK
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
-#elif defined(EVENT_GROUP)
-	//todo Make timeout and Handling to this timeout
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-#endif
-
-	for(;;)
-	{
-
-#ifdef ADVANCETASK
-		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-#endif
-		//wait for MSG to arrive
-		//todo Optimize wait delay to be dynamic to the number of slaves
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
-
-		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
-	{
-			uint8_t casted_volt = (uint8_t)battery_volt;
-			xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
-//			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
-//
-//			char numBuf[12];
-//			itoa((uint32_t)battery_volt, numBuf, 10);
-//
-//			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
-//			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
-		}
-		else
-		{
-			//indicate message is not received
-			HAL_UART_Transmit(&huart2, (uint8_t*)"not Received", 12, HAL_MAX_DELAY);
-		}
-
-	}
-}
-
-//Sends a read voltage cmd to BMS queue to read cell temp
-void BMS_ReadTempTask(void const * argument)
-{
-	BMS_Request_t req;
-	req.cmd = CMD_READ_GPIO_ADC;
-	req.requester = xTaskGetCurrentTaskHandle();
-	//todo make it GPIO_generic
-	req.BOARD_NUM = 1;
-	req.GPIO_NUM = 8;
-
-#ifdef ADVANCETASK
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
-#elif defined(EVENT_GROUP)
-	//todo Make timeout and Handling to this timeout
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-#endif
-
-	for(;;)
-	{
-#ifdef ADVANCETASK
-		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-#endif
-
-		//todo Optimize wait delay to be dynamic to the number of slaves
-		//wait for MSG to arrive
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
-
-		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
-		{
-			//process Voltage reading
-		}
-		else
-		{
-			//indicate message is not received
-		}
-
-	}
 }
 
 //A Task that periodically pull Cell voltage and Temperature reading
@@ -874,11 +667,10 @@ void BMS_MonitorTask(void const * argument)
 		xSemaphoreGive(UART_MUTEX);
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
-
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			buffer = readGPIOVoltage(i, Thermistor_GPIO);
+			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
 			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
 			vTaskDelay(pdMS_TO_TICKS(5));
 		}
@@ -923,6 +715,74 @@ void BMS_CommadTask(void const * argument)
 		}
 	}
 }
+
+//Sends a read voltage cmd to BMS queue to read cell voltages
+void BMS_CellVoltageTask(void const * argument)
+{
+	BMS_Request_t req;
+	req.cmd = CMD_READ_CELL_VOLTAGES;
+	req.requester = xTaskGetCurrentTaskHandle();
+
+	//todo Make timeout and Handling to this timeout
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+
+	for(;;)
+	{
+		//wait for MSG to arrive
+		//todo Optimize wait delay to be dynamic to the number of slaves
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+
+		if(xQueueReceive(bmsVoltageQueue, &final_value, (TickType_t)10) == pdTRUE)
+		{
+			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
+
+			char numBuf[12];
+			itoa((uint32_t)final_value, numBuf, 10);
+
+			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
+			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+		}
+		else
+		{
+			//indicate message is not received
+			HAL_UART_Transmit(&huart2, (uint8_t*)"not Received", 12, HAL_MAX_DELAY);
+		}
+
+	}
+}
+
+//Sends a read voltage cmd to BMS queue to read cell temp
+void BMS_ReadTempTask(void const * argument)
+{
+	BMS_Request_t req;
+	req.cmd = CMD_READ_GPIO_ADC;
+	req.requester = xTaskGetCurrentTaskHandle();
+	//todo make it GPIO_generic
+	req.BOARD_NUM = 1;
+	req.GPIO_NUM = 8;
+
+	//todo Make timeout and Handling to this timeout
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+
+	for(;;)
+	{
+
+		//todo Optimize wait delay to be dynamic to the number of slaves
+		//wait for MSG to arrive
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+
+		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
+		{
+			//process Voltage reading
+		}
+		else
+		{
+			//indicate message is not received
+		}
+
+	}
+}
+
 
 void BMS_FaultTask(void const * argument)
 {
