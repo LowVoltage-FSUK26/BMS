@@ -194,7 +194,7 @@ void BMS_FaultTask(void const * argument);
 /* USER CODE BEGIN 0 */
 
 
-
+UBaseType_t uxHighWaterMark;
 extern EventGroupHandle_t uartEventGroup;
 /* USER CODE END 0 */
 
@@ -260,16 +260,16 @@ int main(void)
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 128, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 
 #ifdef SIMPLETASK
-	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 512, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
+	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 128, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
 #elif defined(EVENT_GROUP)
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 512, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 128, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
 #endif
 
 
@@ -567,7 +567,6 @@ void BMS_Init(void const * argument)
 #elif defined(EVENT_GROUP)
 	xEventGroupSetBits(BMS_EventGroup, BMS_INIT_DONE_BIT);
 #endif
-
 	vTaskDelete(NULL);
 
 }
@@ -609,7 +608,6 @@ void BMS_MonitorTask(void const * argument)
 		xSemaphoreGive(UART_MUTEX);
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
-
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{

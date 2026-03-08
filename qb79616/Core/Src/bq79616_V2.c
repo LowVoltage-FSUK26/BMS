@@ -27,6 +27,7 @@
 // External UART handle (assumed to be defined and initialized in main.c)
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2; //huart2 is used only for debugging
+extern UBaseType_t uxHighWaterMark;
 
 // Global variables (adjust sizes as needed)
 uint8_t response_frame2[(MAXBYTES+6)*TOTALBOARDS];

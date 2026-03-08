@@ -92,7 +92,7 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr);
 */
 uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells);
 uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors);
-//uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType);
+uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType);
 void nfault_enable();
 void ResetAllFaults(uint8_t bID, uint8_t bWriteType);
 void MaskAllFaults(uint8_t bID, uint8_t bWriteType);
