@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "BMS_Config.h"
 #include "BMS_tests.h"
@@ -399,10 +400,10 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 16;
+  hcan.Init.Prescaler = 18;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
   hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = DISABLE;
@@ -732,12 +733,12 @@ void BMS_CellVoltageTask(void const * argument)
 		//todo Optimize wait delay to be dynamic to the number of slaves
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
-		if(xQueueReceive(bmsVoltageQueue, &final_value, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
 		{
 			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
 
 			char numBuf[12];
-			itoa((uint32_t)final_value, numBuf, 10);
+			itoa((uint32_t)battery_volt, numBuf, 10);
 
 			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
 			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
