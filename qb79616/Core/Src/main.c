@@ -262,6 +262,8 @@ int main(void)
 
 	HAL_TIM_Base_Start(&htim2);
 
+	BMS_Can_Init();
+
 
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();
