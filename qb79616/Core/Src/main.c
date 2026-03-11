@@ -24,6 +24,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "BMS_Config.h"
 #include "BMS_tests.h"
@@ -61,11 +62,12 @@
 //---------------------
 //RTOS MACROS
 //--------------------
-#define NOTIFY_BMS_INIT_DONE   	(1U << 0)
-#define NOTIFY_BMS_GOT_MSG		(1U << 1)
-#define NOTIFY_BMS_GOT_VOLT		(1U << 1)
-#define NOTIFY_BMS_GOT_TEMP		(1U << 2)
-#define NOTIFY_BMS_GOT_FS		(1U << 3)
+#define NOTIFY_BMS_INIT_DONE   		(1U << 0)
+#define NOTIFY_BMS_GOT_MSG          (1U << 1)       //General Message
+#define NOTIFY_BMS_GOT_VOLT         (1U << 2)
+#define NOTIFY_BMS_GOT_TEMP         (1U << 3)
+#define NOTIFY_BMS_GOT_FS           (1U << 4)
+
 
 
 
@@ -91,6 +93,7 @@ UART_HandleTypeDef huart2;
 //TaskHandle_t defaultTaskHandle;
 
 TaskHandle_t BmsInitTaskHandle;
+TaskHandle_t BmsCanTaskHandle;
 
 #ifdef SIMPLETASK
 
@@ -119,6 +122,7 @@ EventGroupHandle_t BMS_EventGroup;
 //RTOS Queues
 //----------------
 
+QueueHandle_t bmsCanQueue;
 QueueHandle_t bmsCmdQueue;
 QueueHandle_t bmsVoltageQueue;
 QueueHandle_t bmsTempQueue;
@@ -141,7 +145,9 @@ uint8_t received_data1 = 0;
 uint8_t received_data2 = 0;
 uint8_t Buffer[5];
 
-float final_value = 0;
+uint8_t init_done = 0;
+
+float battery_volt = 0;
 extern int cellVoltages_board[SLAVEBOARDS][16];
 uint16_t GpioReadings[SLAVEBOARDS];
 
@@ -151,6 +157,20 @@ float gpio1_voltage=5;
 float gpio8_voltage=5.254654;
 
 extern volatile uint32_t ms_counter ;
+
+
+UBaseType_t uxHighWaterMark;
+extern EventGroupHandle_t uartEventGroup;
+
+//------------------------
+//    CAN Variables
+//-----------------------
+CAN_TxHeaderTypeDef BMS_CAN_TxHandler;
+CAN_RxHeaderTypeDef BMS_CAN_RxHandler;
+uint32_t TxMailbox;
+uint8_t BMS_CAN_TxData[8];
+uint8_t BMS_CAN_RxData[8];
+
 
 /* USER CODE END PV */
 
@@ -186,17 +206,23 @@ void BMS_ReadTempTask(void const * argument);
 void BMS_FaultTask(void const * argument);
 
 #endif
-//todo do Can Task
+
+void BMS_CanTask(void const * argument);
 
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+       if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData) != HAL_OK)
+       {
+               return; // Error
+       }
 
+}
 
-UBaseType_t uxHighWaterMark;
-extern EventGroupHandle_t uartEventGroup;
 /* USER CODE END 0 */
 
 /**
@@ -252,6 +278,7 @@ int main(void)
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
+	bmsCanQueue = xQueueCreate(5, CAN_MSG_SIZE);
 
 
 	//==================Define MUTEX===================//
@@ -262,7 +289,7 @@ int main(void)
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-
+	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
 #ifdef SIMPLETASK
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 128, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
 #elif defined(EVENT_GROUP)
@@ -346,10 +373,10 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 16;
+  hcan.Init.Prescaler = 18;
   hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_1TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
   hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = DISABLE;
@@ -546,7 +573,8 @@ void BMS_Init(void const * argument)
 #ifdef CHAIN
 	Bridge_AutoAddress();
 #elif defined(RING)
-
+	AutoAddress_Ring();
+	init_done = 1;
 #endif
 
 	vTaskDelay(10);
@@ -581,7 +609,7 @@ void BMS_Diagnostic(void const * argument)
 	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
 	for(;;)
 	{
-		final_value = test2();
+		battery_volt = test2();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		vTaskDelay(100);
@@ -678,12 +706,15 @@ void BMS_CellVoltageTask(void const * argument)
 		//todo Optimize wait delay to be dynamic to the number of slaves
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
-		if(xQueueReceive(bmsVoltageQueue, &final_value, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
 		{
+			uint8_t casted_volt = (uint8_t)battery_volt;
+			xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
+
 			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
 
 			char numBuf[12];
-			itoa((uint32_t)final_value, numBuf, 10);
+			itoa((uint32_t)battery_volt, numBuf, 10);
 
 			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
 			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
@@ -728,6 +759,35 @@ void BMS_ReadTempTask(void const * argument)
 
 	}
 }
+
+
+void BMS_CanTask(void const * argument)
+{
+       BMS_CAN_TxHandler.StdId = 0x123;                        //Message ID
+       BMS_CAN_TxHandler.ExtId = 0x00;                         //Message ID extension for CAN extend
+       BMS_CAN_TxHandler.IDE = CAN_ID_STD;             //CAN ID is 11 bits
+       BMS_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
+       BMS_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is 1 bytes
+       xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+
+       for(;;)
+       {
+               if(xQueueReceive(bmsCanQueue, BMS_CAN_TxData, (TickType_t)10) == pdTRUE)
+               {
+                       if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, BMS_CAN_TxData, &TxMailbox) == HAL_OK)
+                       {
+//                             HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+//                             vTaskDelay(pdMS_TO_TICKS(100));
+//                             HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+//                             vTaskDelay(pdMS_TO_TICKS(100));
+                       }
+
+                       vTaskDelay(pdMS_TO_TICKS(100));
+               }
+       }
+
+}
+
 
 
 void BMS_FaultTask(void const * argument)

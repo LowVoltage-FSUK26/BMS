@@ -1,6 +1,8 @@
 #ifndef BQ79616_H
 #define BQ79616_H
 
+#include <stdint.h>
+
 /* ------------------------------------
      User defined parameters
    ------------------------------------
