@@ -914,7 +914,7 @@ uint8_t readCellVoltages(uint8_t boardNum, uint8_t numCells, int *totalV){
 	return 1;
 }
 
-uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *cellVoltages) { 
+uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *cellVoltages) {
 	int16_t cell_voltage = 0;
 	*totalV = 0;
 

@@ -31,7 +31,7 @@ void test1(){ //success!!!
 
 /** Test Case 2: Voltage Reading **/
 
-float test2(){
+float readBattaryVoltage(){
 
 	int slave_totalV[SLAVEBOARDS] = {0};
 	int totalV = 0;
@@ -48,6 +48,40 @@ float test2(){
 
 	return (totalV * 0.00019073);
 
+}
+
+//BMS_StatusTypeDef readChainVoltage(uint8_t activeCells, int *slaves_arr, float* totalV)
+//{
+//	for(uint8_t i = 1; i <= SLAVEBOARDS; i++ )
+//	{
+//		readBoardVoltages(i, activeCells, slaves_arr + i, cellVoltages_board[i - 1]);
+//		*totalV += slaves_arr[i - 1];
+//		vTaskDelay(pdMS_TO_TICKS(100));		//Check for the minimum delay that can be achieved
+//	}
+//
+//	*totalV = (*totalV * 0.00019073);
+//
+//	if(*totalV >= 0)
+//		return BMS_OK;
+//	else
+//		return BMS_ERROR;
+//}
+
+BMS_StatusTypeDef readSlaveVoltage(uint8_t salve_num, uint8_t activeCells, float* totalV, int* raw_value)
+{
+
+	*totalV = 0;
+	*raw_value = 0;
+	if((salve_num <= SLAVEBOARDS) && (activeCells <= ACTIVE_CELLS))
+	{
+		readBoardVoltages(salve_num, activeCells, raw_value, cellVoltages_board[salve_num]);
+		*totalV = (float)(*raw_value) * 0.00019073;
+	}
+
+	if(totalV >= 0)
+		return BMS_OK;
+	else
+		return BMS_ERROR;
 }
 
 

@@ -59,6 +59,7 @@
 #define DIETEMP1_LO_REG DIETEMP1_LO  // Low byte register of Die Temperature
 #define VLSB_MAIN_DIETEMP1 0.0078125 // LSB value in °C
 
+
 //---------------------
 //RTOS MACROS
 //--------------------
@@ -280,7 +281,7 @@ int main(void)
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
-//	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
+	//	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
 	bmsCanQueue = xQueueCreate(5, sizeof(BMS_CAN_Queue_Message_t));
 
 
@@ -612,7 +613,7 @@ void BMS_Diagnostic(void const * argument)
 	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
 	for(;;)
 	{
-		battery_volt = test2();
+		battery_volt = readBattaryVoltage();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		vTaskDelay(100);
@@ -633,25 +634,58 @@ void BMS_Diagnostic(void const * argument)
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument)
 {
-	float buffer = 0;
+
+	BMS_Queue_Measurement_t buffer;
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
 	{
+		int raw_battary_voltage = 0;
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
-		buffer = test2();
-		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-		xSemaphoreGive(UART_MUTEX);
-		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
-		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
-		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
-		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
-			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-			vTaskDelay(pdMS_TO_TICKS(5));
+			//buffer = test2();
+			buffer.type = BMS_DATA_VOLTAGE;
+
+			//Fetching the Voltage Value of Each Slave
+			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+			{
+				int raw_slave_volt = 0;
+				buffer.slave_id = i;
+				if(readSlaveVoltage(i, ACTIVE_CELLS, &buffer.value, &raw_slave_volt) != BMS_OK)
+				{
+					//error
+				}
+				raw_battary_voltage += raw_slave_volt;
+
+				//adding Voltage reading in queue
+				xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
+				//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+				if(i%3 == 0)
+					xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
+			}
+
+			//calculating Battery voltage
+			buffer.slave_id = 0;
+			buffer.value = raw_battary_voltage * VOLT_CONV;
+			xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
+			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		}
-		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
+		xSemaphoreGive(UART_MUTEX);
+
+		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
+
+		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
+		{
+			buffer.type = BMS_DATA_TEMPERATURE;
+			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+			{
+				buffer.slave_id = i;
+				buffer.value = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
+				xQueueSendToBack(bmsTempQueue, &buffer.value, (TickType_t)10);
+				vTaskDelay(pdMS_TO_TICKS(5));
+			}
+			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
+		}
 		xSemaphoreGive(UART_MUTEX);
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
@@ -699,6 +733,7 @@ void BMS_CellVoltageTask(void const * argument)
 	BMS_Request_t req;
 	req.cmd = CMD_READ_CELL_VOLTAGES;
 	req.requester = xTaskGetCurrentTaskHandle();
+	BMS_Queue_Measurement_t buffer;
 
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);

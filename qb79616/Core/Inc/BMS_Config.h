@@ -24,11 +24,14 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 3       //boards in stack (including the bridge)
-#define SLAVEBOARDS	(TOTALBOARDS - 1)
+#define TOTALBOARDS 	3       //boards in stack (including the bridge)
+#define SLAVEBOARDS		(TOTALBOARDS - 1)
+#define ACTIVE_CELLS	16
 #define Thermistor_GPIO 8
-#define BRIDGEUART	1
-#define DEBUGUART	2
+#define BRIDGEUART		1
+#define DEBUGUART		2
+
+#define VOLT_CONV		0.00019073
 
 
 //---------------
@@ -49,6 +52,13 @@
      BMS Frame Structs
    ------------------------------------
  */
+typedef enum
+{
+  BMS_OK       = 0x00U,
+  BMS_ERROR    = 0x01U,
+  BMS_BUSY     = 0x02U,
+  BMS_TIMEOUT  = 0x03U
+} BMS_StatusTypeDef;
 
 typedef union
 {
