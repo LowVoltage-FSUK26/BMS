@@ -126,7 +126,7 @@ QueueHandle_t bmsCanQueue;
 QueueHandle_t bmsCmdQueue;
 QueueHandle_t bmsVoltageQueue;
 QueueHandle_t bmsTempQueue;
-
+QueueHandle_t bmsMeasurmentsQueue;
 
 //----------------
 //RTOS MUTEX
@@ -280,7 +280,8 @@ int main(void)
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
-	bmsCanQueue = xQueueCreate(5, sizeof(BMS_CAN_Queue_element_t));
+//	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
+	bmsCanQueue = xQueueCreate(5, sizeof(BMS_CAN_Queue_Message_t));
 
 
 	//==================Define MUTEX===================//
@@ -765,7 +766,7 @@ void BMS_ReadTempTask(void const * argument)
 
 void BMS_CanTask(void const * argument)
 {
-	BMS_CAN_Queue_element_t CAN_Queue_Buffer;
+	BMS_CAN_Queue_Message_t CAN_Queue_Buffer;
 	BMS_CAN_TxHandler.ExtId = 0x00;                 //Message ID extension for CAN extend
 	BMS_CAN_TxHandler.IDE = CAN_ID_STD;             //CAN ID is 11 bits
 	BMS_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
@@ -779,11 +780,11 @@ void BMS_CanTask(void const * argument)
 		if(xQueueReceive(bmsCanQueue, &CAN_Queue_Buffer, (TickType_t)10) == pdTRUE)
 		{
 			//todo SET proper IDS
-			if(CAN_Queue_Buffer.type == VOLT)
+			if(CAN_Queue_Buffer.type == BMS_DATA_VOLTAGE)
 			{
 				BMS_CAN_TxHandler.StdId = 0x123;                //Message ID
 			}
-			else if(CAN_Queue_Buffer.type == TEMP)
+			else if(CAN_Queue_Buffer.type == BMS_DATA_TEMPERATURE)
 			{
 				BMS_CAN_TxHandler.StdId = 0x123;                //Message ID
 			}
