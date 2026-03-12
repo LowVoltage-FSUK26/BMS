@@ -43,17 +43,43 @@
      BMS Configuration MACROS
    ------------------------------------
 */
-#define CAN_MSG_SIZE           1               //Size in bytes
+#define CAN_MSG_SIZE           8               //Size in bytes
+
+typedef uint8_t CAN_Data_Type_t;
+
+#define VOLT  ((CAN_Data_Type_t)0)
+#define TEMP  ((CAN_Data_Type_t)1)
+
+/* ------------------------------------
+     BMS Frame Structs
+   ------------------------------------
+*/
 
 
+typedef struct {
 
+	uint16_t Slave_1;	//Total Voltage/TEMP of 1st Slave in Frame
+	uint16_t Slave_2;	//Total Voltage/TEMP of 2nd Slave in Frame
+	uint16_t Slave_3;	//Total Voltage/TEMP of 3rd Slave in Frame
+	uint16_t Index;		//Index of the 1st and 3rd slave in frame in relation to total chain
+						//In case of last frame in chain, It holds TOTAL Battery Voltage/TEMP
+
+} BMS_CAN_Frame_t;
+
+typedef struct {
+
+	BMS_CAN_Frame_t Data;
+	CAN_Data_Type_t type;			//Voltage or Temp
+
+
+} BMS_CAN_Queue_element_t;
 
 
 //---------------------
 //RTOS Design MODE
 //---------------------
 //#define SIMPLETASK
-//#define ADVANCETASK
+
 #define EVENT_GROUP
 
 /* ------------------------------------
