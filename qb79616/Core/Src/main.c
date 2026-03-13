@@ -212,6 +212,41 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 }
 
+//function that converts the data according to the type
+//Funtion outputs the value x100 to take only 2 numbers after the decimal point
+int16_t BMS_data_convert(BMS_DataType_t type, int16_t data)
+{
+	switch(type)
+	{
+		case BMS_DATA_VOLTAGE:
+			data = (int16_t)((float)(data) * VOLT_CONV * 100);
+			break;
+		case BMS_DATA_TEMPERATURE:
+			data = (int16_t)(((float)(data) * VLSB_GPIO / 1000000) * 100);
+			break;
+	}
+
+	return data;
+}
+
+//void UART_PrintFrame(BMS_CAN_Queue_Message_t *frame)
+//{
+//    char buffer[100];
+//
+//    snprintf(buffer, sizeof(buffer),
+//        "slave[%d] = %d v slave[%d] = %d v slave[%d] = %d slave[%d] = %d v\r\n",
+//		frame->first_slave_id,
+//        frame->Data.frame.slave[0],
+//		frame->first_slave_id + 1,
+//		frame->Data.frame.slave[1],
+//		frame->first_slave_id + 2,
+//		frame->Data.frame.slave[2],
+//		frame->first_slave_id + 3,
+//		frame->Data.frame.slave[3]);
+//
+//    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+//}
+
 /* USER CODE END 0 */
 
 /**
@@ -649,20 +684,20 @@ void BMS_MonitorTask(void const * argument)
 				//adding Voltage reading in queue
 
 				buffer.slave_id = i;
-				buffer.value = ((float)(raw_slave_volt) * VOLT_CONV);
-				xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
-				//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+				buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
+				//xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
+				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 
-				if(i%2 == 0)
+				if( (i % CAN_DATA_PER_FRAME) == 0)
 					xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 				vTaskDelay(1000);
 			}
 
 			//calculating Battery voltage
-			buffer.slave_id = 0;
-			buffer.value = ((float)(raw_battary_voltage) * VOLT_CONV);
-			xQueueSendToBack(bmsVoltageQueue, &(buffer.value), (TickType_t)10);
-			//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+			buffer.slave_id = BATTERYVOLT_ID;
+			buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_battary_voltage);
+			//xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
+			xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		}
 		xSemaphoreGive(UART_MUTEX);
@@ -728,7 +763,9 @@ void BMS_CellVoltageTask(void const * argument)
 	BMS_Request_t req;
 	req.cmd = CMD_READ_CELL_VOLTAGES;
 	req.requester = xTaskGetCurrentTaskHandle();
-	BMS_Queue_Measurement_t buffer;
+	BMS_Queue_Measurement_t volt_buffer;
+	BMS_CAN_Queue_Message_t can_buffer;
+	can_buffer.type = BMS_DATA_VOLTAGE;
 
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
@@ -739,18 +776,37 @@ void BMS_CellVoltageTask(void const * argument)
 		//todo Optimize wait delay to be dynamic to the number of slaves
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
-		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsMeasurmentsQueue, &volt_buffer, (TickType_t)10) == pdTRUE)
 		{
-			uint8_t casted_volt = (uint8_t)battery_volt;
-			xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
 
-			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
+			if(volt_buffer.type == BMS_DATA_VOLTAGE)
+			{
 
-			char numBuf[12];
-			itoa((uint32_t)battery_volt, numBuf, 10);
+				if(volt_buffer.slave_id == BATTERYVOLT_ID)
+				{
+					battery_volt = (float)(volt_buffer.value);
 
-			HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
-			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
+					char numBuf[12];
+					itoa((uint32_t)battery_volt, numBuf, 10);
+					HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
+					HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+				}
+
+				can_buffer.Data.frame.slave[volt_buffer.slave_id % CAN_DATA_PER_FRAME] = volt_buffer.value;
+
+				if(((volt_buffer.slave_id % CAN_DATA_PER_FRAME) == 0))
+				{
+					can_buffer.first_slave_id = volt_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
+					xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+					memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
+				}
+
+			}
+			else
+			{
+				continue;
+			}
 		}
 		else
 		{

@@ -24,12 +24,13 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 	3       //boards in stack (including the bridge)
-#define SLAVEBOARDS		(TOTALBOARDS - 1)
-#define ACTIVE_CELLS	16
-#define Thermistor_GPIO 8
-#define BRIDGEUART		1
-#define DEBUGUART		2
+#define TOTALBOARDS 		3       //boards in stack (including the bridge)
+#define SLAVEBOARDS			(TOTALBOARDS - 1)
+#define ACTIVE_CELLS		16
+#define Thermistor_GPIO 	8
+#define BRIDGEUART			1
+#define DEBUGUART			2
+#define BATTERYVOLT_ID		SLAVEBOARDS + 1
 
 #define VOLT_CONV		0.00019073
 
@@ -46,7 +47,9 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define CAN_MSG_SIZE           8               //Size in bytes
+#define CAN_MSG_SIZE           	8               //Size in bytes
+#define CAN_DATA_SIZE			2
+#define CAN_DATA_PER_FRAME		(CAN_MSG_SIZE/CAN_DATA_SIZE)
 
 /* ------------------------------------
      BMS Frame Structs
@@ -66,10 +69,8 @@ typedef union
 
 	struct {
 
-		uint16_t Slave[3];	//Total Voltage/TEMP of each slave
-		uint16_t Index;		//Index of the 1st and 3rd slave in frame in relation to total chain
-		//In case of last frame in chain, It holds TOTAL Battery Voltage/TEMP
-
+		uint16_t slave[4];	//Total Voltage/TEMP of each slave
+							//In case of last frame in chain, It holds TOTAL Battery Voltage/TEMP
 	} frame;
 
 } BMS_CAN_Frame_t;
@@ -117,6 +118,7 @@ typedef struct {
 
 	BMS_CAN_Frame_t Data;
 	BMS_DataType_t type;			//Voltage or Temp
+	uint8_t first_slave_id;
 
 } BMS_CAN_Queue_Message_t;
 
