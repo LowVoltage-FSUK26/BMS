@@ -60,18 +60,6 @@
 #define VLSB_MAIN_DIETEMP1 0.0078125 // LSB value in °C
 
 
-//---------------------
-//RTOS MACROS
-//--------------------
-#define NOTIFY_BMS_INIT_DONE   		(1U << 0)
-#define NOTIFY_BMS_GOT_MSG          (1U << 1)       //General Message
-#define NOTIFY_BMS_GOT_VOLT         (1U << 2)
-#define NOTIFY_BMS_GOT_TEMP         (1U << 3)
-#define NOTIFY_BMS_GOT_FS           (1U << 4)
-
-
-
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -640,7 +628,9 @@ void BMS_MonitorTask(void const * argument)
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
 	{
+		int raw_slave_volt = 0;
 		int raw_battary_voltage = 0;
+
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		{
 			//buffer = test2();
@@ -649,25 +639,29 @@ void BMS_MonitorTask(void const * argument)
 			//Fetching the Voltage Value of Each Slave
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 			{
-				int raw_slave_volt = 0;
-				buffer.slave_id = i;
-				if(readSlaveVoltage(i, ACTIVE_CELLS, &buffer.value, &raw_slave_volt) != BMS_OK)
+				raw_slave_volt = 0;
+				if(readSlaveVoltage(i, ACTIVE_CELLS, &raw_slave_volt) != BMS_OK)
 				{
 					//error
 				}
 				raw_battary_voltage += raw_slave_volt;
 
 				//adding Voltage reading in queue
+
+				buffer.slave_id = i;
+				buffer.value = (int16_t)((float)(raw_slave_volt) * VOLT_CONV);
 				xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
 				//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
-				if(i%3 == 0)
+
+				if(i%(CAN_MSG_SIZE/2) == 0)
 					xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 			}
 
 			//calculating Battery voltage
 			buffer.slave_id = 0;
-			buffer.value = raw_battary_voltage * VOLT_CONV;
+			buffer.value = (int16_t)((float)(raw_battary_voltage) * VOLT_CONV);
 			xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
+			//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		}
 		xSemaphoreGive(UART_MUTEX);

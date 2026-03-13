@@ -67,18 +67,16 @@ float readBattaryVoltage(){
 //		return BMS_ERROR;
 //}
 
-BMS_StatusTypeDef readSlaveVoltage(uint8_t salve_num, uint8_t activeCells, float* totalV, int* raw_value)
+BMS_StatusTypeDef readSlaveVoltage(uint8_t salve_num, uint8_t activeCells, int* raw_value)
 {
 
-	*totalV = 0;
 	*raw_value = 0;
 	if((salve_num <= SLAVEBOARDS) && (activeCells <= ACTIVE_CELLS))
 	{
 		readBoardVoltages(salve_num, activeCells, raw_value, cellVoltages_board[salve_num]);
-		*totalV = (float)(*raw_value) * 0.00019073;
 	}
 
-	if(totalV >= 0)
+	if(raw_value >= 0)
 		return BMS_OK;
 	else
 		return BMS_ERROR;

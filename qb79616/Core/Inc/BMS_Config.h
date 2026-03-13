@@ -77,9 +77,20 @@ typedef union
 //---------------------
 //RTOS Design MODE
 //---------------------
-//#define SIMPLETASK
 
+//#define SIMPLETASK
 #define EVENT_GROUP
+
+//---------------------
+//RTOS MACROS
+//--------------------
+#define NOTIFY_BMS_INIT_DONE   		(1U << 0)
+#define NOTIFY_BMS_GOT_MSG          (1U << 1)       //General Message
+#define NOTIFY_BMS_GOT_VOLT         (1U << 2)
+#define NOTIFY_BMS_GOT_TEMP         (1U << 3)
+#define NOTIFY_BMS_GOT_FS           (1U << 4)
+
+
 
 /* ------------------------------------
      BMS Configuration Typedefs
@@ -97,7 +108,7 @@ typedef struct
 {
     BMS_DataType_t type;
     uint8_t slave_id;
-    float value;
+    int16_t value;
 
 } BMS_Queue_Measurement_t;
 
