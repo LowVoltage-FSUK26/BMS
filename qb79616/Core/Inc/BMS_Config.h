@@ -30,7 +30,7 @@
 #define Thermistor_GPIO 	8
 #define BRIDGEUART			1
 #define DEBUGUART			2
-#define BATTERYVOLT_ID		SLAVEBOARDS + 1
+#define BATTERYVOLT_ID		(TOTALBOARDS + (4 - (TOTALBOARDS % 4)))
 
 #define VOLT_CONV		0.00019073
 
@@ -109,7 +109,7 @@ typedef struct
 {
     BMS_DataType_t type;
     uint8_t slave_id;
-    float value;
+    int16_t value;
 
 } BMS_Queue_Measurement_t;
 

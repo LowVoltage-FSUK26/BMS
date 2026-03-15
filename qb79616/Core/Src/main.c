@@ -214,16 +214,16 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 //function that converts the data according to the type
 //Funtion outputs the value x100 to take only 2 numbers after the decimal point
-int16_t BMS_data_convert(BMS_DataType_t type, int16_t data)
+int16_t BMS_data_convert(BMS_DataType_t type, int data)
 {
 	switch(type)
 	{
-		case BMS_DATA_VOLTAGE:
-			data = (int16_t)((float)(data) * VOLT_CONV * 100);
-			break;
-		case BMS_DATA_TEMPERATURE:
-			data = (int16_t)(((float)(data) * VLSB_GPIO / 1000000) * 100);
-			break;
+	case BMS_DATA_VOLTAGE:
+		data = (int16_t)((float)(data) * VOLT_CONV * 100);
+		break;
+	case BMS_DATA_TEMPERATURE:
+		data = (int16_t)(((float)(data) * VLSB_GPIO / 1000000) * 100);
+		break;
 	}
 
 	return data;
@@ -304,7 +304,7 @@ int main(void)
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
-	//	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
+	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
 	bmsCanQueue = xQueueCreate(5, sizeof(BMS_CAN_Queue_Message_t));
 
 
@@ -688,7 +688,7 @@ void BMS_MonitorTask(void const * argument)
 				//xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
 				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 
-				if( (i % CAN_DATA_PER_FRAME) == 0)
+				//if( (i % CAN_DATA_PER_FRAME) == 0)
 					xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 				vTaskDelay(1000);
 			}
@@ -710,7 +710,7 @@ void BMS_MonitorTask(void const * argument)
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 			{
 				buffer.slave_id = i;
-				buffer.value = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
+				buffer.value = (uint16_t)readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
 				xQueueSendToBack(bmsTempQueue, &buffer.value, (TickType_t)10);
 				vTaskDelay(pdMS_TO_TICKS(5));
 			}
@@ -766,15 +766,14 @@ void BMS_CellVoltageTask(void const * argument)
 	BMS_Queue_Measurement_t volt_buffer;
 	BMS_CAN_Queue_Message_t can_buffer;
 	can_buffer.type = BMS_DATA_VOLTAGE;
+	memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
 
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
 	for(;;)
 	{
-		//wait for MSG to arrive
-		//todo Optimize wait delay to be dynamic to the number of slaves
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+
 
 		if(xQueueReceive(bmsMeasurmentsQueue, &volt_buffer, (TickType_t)10) == pdTRUE)
 		{
@@ -784,7 +783,7 @@ void BMS_CellVoltageTask(void const * argument)
 
 				if(volt_buffer.slave_id == BATTERYVOLT_ID)
 				{
-					battery_volt = (float)(volt_buffer.value);
+					battery_volt = (float)(volt_buffer.value / 100);
 
 					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
 					char numBuf[12];
@@ -793,7 +792,7 @@ void BMS_CellVoltageTask(void const * argument)
 					HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
 				}
 
-				can_buffer.Data.frame.slave[volt_buffer.slave_id % CAN_DATA_PER_FRAME] = volt_buffer.value;
+				can_buffer.Data.frame.slave[(volt_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = volt_buffer.value;
 
 				if(((volt_buffer.slave_id % CAN_DATA_PER_FRAME) == 0))
 				{
@@ -812,6 +811,9 @@ void BMS_CellVoltageTask(void const * argument)
 		{
 			//indicate message is not received
 			HAL_UART_Transmit(&huart2, (uint8_t*)"not Received", 12, HAL_MAX_DELAY);
+			//wait for MSG to arrive
+			//todo Optimize wait delay to be dynamic to the number of slaves
+			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 		}
 
 	}
