@@ -16,7 +16,7 @@
 
 extern UART_HandleTypeDef huart2;
 
-int cellVoltages_board[SLAVEBOARDS][16] = {0};
+uint16_t cellVoltages_board[SLAVEBOARDS][16] = {0};
 
 void test1(){ //success!!!
 	Wake79616();

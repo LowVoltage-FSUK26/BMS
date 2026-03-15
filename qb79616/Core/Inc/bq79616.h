@@ -20,8 +20,11 @@
 
 #define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
 
-#define OV_THR 0x23 		//4200mV= 4.2V
-#define UV_THR 0x22 		//2900mV= 2.9V
+
+   //0x02 to 0x0E: range from 2700 mV to 3000 mV  //0x12 to 0x1E: range from 3500 mV to 3800 mV
+ #define OV_THR 0x02    //0x22 to 0x2E: range from 4175 mV to 4475 mV
+
+#define UV_THR 0x00 		//0x00 to 0x26: range from 1200 mV to 3100 mV
 #define OVUV_MODE 0b01	//round robin mode on all active cells
 
 
@@ -85,7 +88,7 @@ int readFrameReq(uint8_t bID, uint16_t wAddr, uint8_t bByteToReturn, uint8_t bWr
 uint16_t CRC16(uint8_t *pBuf, int nLen);
 void RunCB();
 uint8_t readCellVoltages(uint8_t boardNum, uint8_t numCells, int *totalV);
-uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *cellVoltages);
+uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, uint16_t *cellVoltages);
 float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr);
 
 /* ------------------------------------
