@@ -782,7 +782,7 @@ uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 	uint8_t goCmd = 0x05;
 
 	//set active cells number
-	writeReg(dev_address, BQ79616_ACTIVE_CELL, activeCells, 1, FRMWRT_SGL_W);
+	writeReg(dev_address, BQ79616_ACTIVE_CELL, activeCells - 6, 1, FRMWRT_SGL_W);
 	//set OV and UV thresholds
 	writeReg(dev_address, BQ79616_OV_THRESH, OV_THR, 1, FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_UV_THRESH, UV_THR, 1, FRMWRT_SGL_W);
