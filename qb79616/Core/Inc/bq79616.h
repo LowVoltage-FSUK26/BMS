@@ -20,8 +20,11 @@
 
 #define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
 
-#define OV_THR 0x23 		//4200mV= 4.2V
-#define UV_THR 0x22 		//2900mV= 2.9V
+
+   //0x02 to 0x0E: range from 2700 mV to 3000 mV  //0x12 to 0x1E: range from 3500 mV to 3800 mV
+ #define OV_THR 0x02    //0x22 to 0x2E: range from 4175 mV to 4475 mV
+
+#define UV_THR 0x00 		//0x00 to 0x26: range from 1200 mV to 3100 mV
 #define OVUV_MODE 0b01	//round robin mode on all active cells
 
 
