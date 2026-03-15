@@ -528,6 +528,7 @@ void BMS_Init(void const * argument)
 	init_done = 1;
 #endif
 
+	//todo make it a for loop on the number of slaves
 	if(configure_OVUV(1, 16) != 1)
 	{
 		//error
@@ -535,6 +536,18 @@ void BMS_Init(void const * argument)
 	}
 
 	if(configure_OVUV(2, 16) != 1)
+	{
+		//error
+		while(1);
+	}
+
+	if(configure_OTUT(1, 0) != 1)
+	{
+		//error
+		while(1);
+	}
+
+	if(configure_OTUT(2, 0) != 1)
 	{
 		//error
 		while(1);

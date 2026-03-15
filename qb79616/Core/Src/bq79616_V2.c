@@ -837,7 +837,7 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 
 	//enable TSERF
 	writeReg(dev_address, BQ79616_CONTROL2, 0x01, 1, FRMWRT_SGL_W);
-	HAL_Delay(2);
+	vTaskDelay(2);
 
 	//configure all GPIOs for thermistors
 	/*
