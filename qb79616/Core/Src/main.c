@@ -653,8 +653,9 @@ void BMS_MonitorTask(void const * argument)
 				xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
 				//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 
-				if(i%(CAN_MSG_SIZE/2) == 0)
+				if(i%2 == 0)
 					xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
+				vTaskDelay(1000);
 			}
 
 			//calculating Battery voltage
