@@ -262,7 +262,7 @@ int main(void)
 
 	HAL_TIM_Base_Start(&htim2);
 
-	BMS_Can_Init();
+	//BMS_Can_Init();
 
 
 	//==================Define EventGroups===================//
@@ -280,7 +280,7 @@ int main(void)
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
-	bmsCanQueue = xQueueCreate(5, CAN_MSG_SIZE);
+	//bmsCanQueue = xQueueCreate(5, CAN_MSG_SIZE);
 
 
 	//==================Define MUTEX===================//
@@ -291,7 +291,7 @@ int main(void)
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
+	//xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
 #ifdef SIMPLETASK
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 128, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
 #elif defined(EVENT_GROUP)
@@ -711,7 +711,7 @@ void BMS_CellVoltageTask(void const * argument)
 		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
 		{
 			uint8_t casted_volt = (uint8_t)battery_volt;
-			xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
+			//xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
 
 			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
 
