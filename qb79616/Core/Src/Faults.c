@@ -283,12 +283,21 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 	/*************** OV / UV ***************/
 	if(slaveFaultSummary & SLAVE_FLT_OVUV)
 	{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+		vTaskDelay(5000);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+		vTaskDelay(5000);
+
 		// Read FAULT_OV1/2 + FAULT_UV1/2
 	}
 
 	/*************** OT / UT ***************/
 	if(slaveFaultSummary & SLAVE_FLT_OTUT)
 	{
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+		vTaskDelay(5000);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+		vTaskDelay(5000);
 		// Read FAULT_OT1/2 + FAULT_UT1/2
 	}
 
@@ -331,68 +340,14 @@ void Stack_CheckFaultSummary(void)
 
 
 
-uint8_t summary=50;
 //nfault interrupt handling
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 {
 	if(GPIO_PIN== GPIO_PIN_8)
 	{
-		//read fault summary register
-		//checkFaults();
 
+while(1);
 
-
-		summary=0;
-		readReg(0, Bridge_FAULT_SUMMARY, &summary, 1, 100, FRMWRT_SGL_R);
-
-		//determine fault condition and implement appropriate handling
-		if(summary & 0x01)
-		{
-			/* PWR fault
-				read FAULT_PWR1, FAULT_PWR2, and FAULT_PWR3 registers
-			 */
-
-		}
-		if(summary & 0x02)
-		{
-			/* SYS FAULT
-				read FAULT_SYS register
-			 */
-		}
-		if(summary & 0x04)
-		{
-			/* OVUV FAULT
-				read FAULT_OV1, FAULT_OV2, FAULT_UV1, FAULT_UV2 registers
-			 */
-		}
-		if(summary & 0x08)
-		{
-			/* OTUT FAULT
-				read FAULT_OT1, FAULT_OT2, FAULT_UT1, FAULT_UT2 registers
-			 */
-		}
-		if(summary & 0x10)
-		{
-			/* COMM FAULT
-				read FAULT_COMM1, FAULT_COMM2, FAULT_COMM3 registers
-				don't read registers that are masked
-			 */
-		}
-		if(summary & 0x20)
-		{
-			/* OTP FAULT
-                read FAULT_OTP register
-			 */
-		}
-		if(summary & 0x40)
-		{
-		}
-		if(summary & 0x80)
-		{
-			/* PROT FAULT
-                read FAULT_PROT1, FAULT_PROT2 register
-			 */
-		}
 	}
 }
 
