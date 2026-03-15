@@ -649,7 +649,7 @@ void BMS_MonitorTask(void const * argument)
 				//adding Voltage reading in queue
 
 				buffer.slave_id = i;
-				buffer.value = (int16_t)((float)(raw_slave_volt) * VOLT_CONV);
+				buffer.value = ((float)(raw_slave_volt) * VOLT_CONV);
 				xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
 				//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 
@@ -659,8 +659,8 @@ void BMS_MonitorTask(void const * argument)
 
 			//calculating Battery voltage
 			buffer.slave_id = 0;
-			buffer.value = (int16_t)((float)(raw_battary_voltage) * VOLT_CONV);
-			xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
+			buffer.value = ((float)(raw_battary_voltage) * VOLT_CONV);
+			xQueueSendToBack(bmsVoltageQueue, &(buffer.value), (TickType_t)10);
 			//xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		}

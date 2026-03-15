@@ -108,7 +108,7 @@ typedef struct
 {
     BMS_DataType_t type;
     uint8_t slave_id;
-    int16_t value;
+    float value;
 
 } BMS_Queue_Measurement_t;
 
