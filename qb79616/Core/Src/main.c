@@ -147,7 +147,7 @@ uint8_t init_done = 0;
 
 float battery_volt = 0;
 extern uint16_t cellVoltages_board[SLAVEBOARDS][16];
-uint16_t GpioReadings[SLAVEBOARDS];
+uint16_t GpioReadings[SLAVEBOARDS][4];
 
 uint8_t hi, lo;
 
@@ -594,8 +594,12 @@ void BMS_Diagnostic(void const * argument)
 
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			gpio8_voltage = readGPIOVoltage(i, 8, &(GpioReadings[i]));
-			vTaskDelay(50);
+			for(uint8_t j = 1; j <= 4; j++)
+			{
+				gpio8_voltage = readGPIOVoltage(i, j, &(GpioReadings[i - 1][j - 1]));
+				vTaskDelay(50);
+			}
+
 		}
 		vTaskDelay(50);
 	}
@@ -618,12 +622,23 @@ void BMS_MonitorTask(void const * argument)
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
+
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
-			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-			vTaskDelay(pdMS_TO_TICKS(5));
+			for(uint8_t j = 1; j <= 4; j++)
+			{
+				buffer = readGPIOVoltage(i, j, &(GpioReadings[i - 1][j - 1]));
+				xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+				vTaskDelay(pdMS_TO_TICKS(5));
+			}
+
 		}
+//		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+//		{
+//			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
+//			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+//			vTaskDelay(pdMS_TO_TICKS(5));
+//		}
 		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		xSemaphoreGive(UART_MUTEX);
 
