@@ -146,7 +146,7 @@ uint8_t Buffer[5];
 uint8_t init_done = 0;
 
 float battery_volt = 0;
-extern int cellVoltages_board[SLAVEBOARDS][16];
+extern uint16_t cellVoltages_board[SLAVEBOARDS][16];
 uint16_t GpioReadings[SLAVEBOARDS];
 
 uint8_t hi, lo;

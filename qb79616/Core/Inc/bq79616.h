@@ -85,7 +85,7 @@ int readFrameReq(uint8_t bID, uint16_t wAddr, uint8_t bByteToReturn, uint8_t bWr
 uint16_t CRC16(uint8_t *pBuf, int nLen);
 void RunCB();
 uint8_t readCellVoltages(uint8_t boardNum, uint8_t numCells, int *totalV);
-uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, int *cellVoltages);
+uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, uint16_t *cellVoltages);
 float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr);
 
 /* ------------------------------------
