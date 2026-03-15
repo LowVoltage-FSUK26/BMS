@@ -31,6 +31,7 @@
 #include "queue.h"
 #include "semphr.h"
 #include "event_groups.h"
+#include "GUI.h"
 
 /* USER CODE END Includes */
 
@@ -256,7 +257,7 @@ int main(void)
 	MX_CAN_Init();
 	/* USER CODE BEGIN 2 */
 
-	//BMS_Can_Init();
+	BMS_Can_Init();
 
 
 	//==================Define EventGroups===================//
@@ -274,7 +275,7 @@ int main(void)
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
-	//bmsCanQueue = xQueueCreate(5, CAN_MSG_SIZE);
+	bmsCanQueue = xQueueCreate(5, CAN_MSG_SIZE);
 
 
 	//==================Define MUTEX===================//
@@ -285,7 +286,7 @@ int main(void)
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-	//xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
 #ifdef SIMPLETASK
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 128, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
 #elif defined(EVENT_GROUP)
@@ -529,17 +530,17 @@ void BMS_Init(void const * argument)
 #endif
 
 	//todo make it a for loop on the number of slaves
-	if(configure_OVUV(1, 16) != 1)
-	{
-		//error
-		while(1);
-	}
-
-	if(configure_OVUV(2, 16) != 1)
-	{
-		//error
-		while(1);
-	}
+//	if(configure_OVUV(1, 16) != 1)
+//	{
+//		//error
+//		while(1);
+//	}
+////
+//	if(configure_OVUV(2, 16) != 1)
+//	{
+//		//error
+//		while(1);
+//	}
 
 	if(configure_OTUT(1, 0) != 1)
 	{
@@ -552,6 +553,8 @@ void BMS_Init(void const * argument)
 		//error
 		while(1);
 	}
+	Bridge_FaultInit();
+	Stack_FaultInit();
 
 	vTaskDelay(10);
 	configureGPIO(Thermistor_GPIO, BQ79616_GPIO_ADC_OTUT_INPUT, 0, FRMWRT_STK_W);
@@ -617,6 +620,11 @@ void BMS_MonitorTask(void const * argument)
 	{
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		buffer = test2();
+		Bridge_CheckFaults();
+		Stack_CheckFaultSummary();
+		Send_GUI_Reading ();
+
+
 		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 		xSemaphoreGive(UART_MUTEX);
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
@@ -633,12 +641,12 @@ void BMS_MonitorTask(void const * argument)
 			}
 
 		}
-//		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
-//		{
-//			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
-//			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-//			vTaskDelay(pdMS_TO_TICKS(5));
-//		}
+		//		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+		//		{
+		//			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
+		//			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+		//			vTaskDelay(pdMS_TO_TICKS(5));
+		//		}
 		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		xSemaphoreGive(UART_MUTEX);
 
@@ -700,7 +708,7 @@ void BMS_CellVoltageTask(void const * argument)
 		if(xQueueReceive(bmsVoltageQueue, &battery_volt, (TickType_t)10) == pdTRUE)
 		{
 			uint8_t casted_volt = (uint8_t)battery_volt;
-			//xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
+			xQueueSendToBack(bmsCanQueue, &casted_volt, (TickType_t)10);
 
 			HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
 
