@@ -671,7 +671,6 @@ void BMS_MonitorTask(void const * argument)
 
 				//if( (i % CAN_DATA_PER_FRAME) == 0)
 					xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
-				vTaskDelay(1000);
 			}
 
 			//calculating Battery voltage
@@ -855,15 +854,16 @@ void BMS_CanTask(void const * argument)
 			//todo SET proper IDS
 			if(CAN_Queue_Buffer.type == BMS_DATA_VOLTAGE)
 			{
-				BMS_CAN_TxHandler.StdId = 0x123;                //Message ID
+				BMS_CAN_TxHandler.StdId = CAN_VOLT_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
 			}
 			else if(CAN_Queue_Buffer.type == BMS_DATA_TEMPERATURE)
 			{
-				BMS_CAN_TxHandler.StdId = 0x123;                //Message ID
+				BMS_CAN_TxHandler.StdId = CAN_TEMP_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
 			}
+
 			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, (uint8_t*)&(CAN_Queue_Buffer.Data), &TxMailbox) == HAL_OK)
 			{
-
+				//error
 			}
 
 			vTaskDelay(pdMS_TO_TICKS(100));
