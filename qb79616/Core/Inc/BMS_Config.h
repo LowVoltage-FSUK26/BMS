@@ -51,7 +51,7 @@
 #define CAN_DATA_SIZE			2
 #define CAN_DATA_PER_FRAME		(CAN_MSG_SIZE/CAN_DATA_SIZE)
 #define CAN_VOLT_ID				0x100
-#define CAN_TEMP_ID				0x120
+#define CAN_TEMP_ID				0x200
 
 /* ------------------------------------
      BMS Frame Structs

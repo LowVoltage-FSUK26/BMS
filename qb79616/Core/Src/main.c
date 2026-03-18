@@ -768,12 +768,12 @@ void BMS_CellVoltageTask(void const * argument)
 				if(volt_buffer.slave_id == BATTERYVOLT_ID)
 				{
 					battery_volt = (float)(volt_buffer.value / 100);
-
-					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
-					char numBuf[12];
-					itoa((uint32_t)battery_volt, numBuf, 10);
-					HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
-					HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+//
+//					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
+//					char numBuf[12];
+//					itoa((uint32_t)battery_volt, numBuf, 10);
+//					HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
+//					HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
 				}
 
 				can_buffer.Data.frame.slave[(volt_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = volt_buffer.value;
