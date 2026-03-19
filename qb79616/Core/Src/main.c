@@ -670,7 +670,7 @@ void BMS_MonitorTask(void const * argument)
 				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 
 				//if( (i % CAN_DATA_PER_FRAME) == 0)
-					xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
+				xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 			}
 
 			//calculating Battery voltage
@@ -685,7 +685,7 @@ void BMS_MonitorTask(void const * argument)
 		Bridge_CheckFaults();
 		Stack_CheckFaultSummary();
 		Send_GUI_Reading ();
-		
+
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
 
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
@@ -768,12 +768,12 @@ void BMS_CellVoltageTask(void const * argument)
 				if(volt_buffer.slave_id == BATTERYVOLT_ID)
 				{
 					battery_volt = (float)(volt_buffer.value / 100);
-//
-//					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
-//					char numBuf[12];
-//					itoa((uint32_t)battery_volt, numBuf, 10);
-//					HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
-//					HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
+
+					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
+					char numBuf[12];
+					itoa((uint32_t)battery_volt, numBuf, 10);
+					HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
+					HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
 				}
 
 				can_buffer.Data.frame.slave[(volt_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = volt_buffer.value;
