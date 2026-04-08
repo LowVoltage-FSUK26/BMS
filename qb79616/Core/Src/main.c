@@ -154,8 +154,8 @@ uint16_t GpioReadings[SLAVEBOARDS][4];
 
 uint8_t hi, lo;
 
-float gpio1_voltage=5;
-float gpio8_voltage=5.254654;
+float gpio1_voltage=0;
+float gpio8_voltage=0;
 
 extern volatile uint32_t ms_counter ;
 
@@ -715,7 +715,9 @@ void BMS_MonitorTask(void const * argument)
 		vTaskDelay(100);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 		vTaskDelay(100);
-		//vTaskDelay(50);
+
+		//Haulting delay for debuging
+		vTaskDelay(1000);
 	}
 }
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -737,7 +739,7 @@ void BMS_CommadTask(void const * argument)
 				xTaskNotify(req.requester, NOTIFY_BMS_GOT_FS, eSetBits);
 				Bridge_CheckFaults();
 				Stack_CheckFaultSummary();
-				Send_GUI_Reading ();
+//				Send_GUI_Reading ();
 				cmd_res = 0;
 				break;
 
@@ -780,7 +782,7 @@ void BMS_CellVoltageTask(void const * argument)
 
 				if(volt_buffer.slave_id == BATTERYVOLT_ID)
 				{
-					battery_volt = (float)(volt_buffer.value / 100);
+					battery_volt = ((float)(volt_buffer.value) / 100);
 
 					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
 					char numBuf[12];
@@ -807,7 +809,7 @@ void BMS_CellVoltageTask(void const * argument)
 		else
 		{
 			//indicate message is not received
-			HAL_UART_Transmit(&huart2, (uint8_t*)"not Received", 12, HAL_MAX_DELAY);
+			//HAL_UART_Transmit(&huart2, (uint8_t*)"not Received", 12, HAL_MAX_DELAY);
 			//wait for MSG to arrive
 			//todo Optimize wait delay to be dynamic to the number of slaves
 			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));

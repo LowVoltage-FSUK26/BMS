@@ -852,7 +852,7 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 		//raw_value = (int16_t)((hi << 8) | lo);
 		raw_value =((buffer[1] << 8) | buffer[2]);
 		*raw_value_ptr = raw_value;
-		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
+		voltage_uV = ((float)(raw_value)) *VLSB_GPIO/1000000;
 	}
 	return voltage_uV;
 }
