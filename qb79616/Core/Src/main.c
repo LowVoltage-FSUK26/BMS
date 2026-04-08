@@ -76,6 +76,19 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 //-----------------------------------------
+// External Fault Variables
+//-----------------------------------------
+extern uint8_t bridge_faultSummary;
+
+extern uint8_t bridge_faultPWR;
+extern uint8_t bridge_faultSYS;
+extern uint8_t bridge_faultREG;
+extern uint8_t bridge_faultCOMM1;
+extern uint8_t bridge_faultCOMM2;
+
+
+
+//-----------------------------------------
 //Define Tasks Handler to hold task ID
 //-----------------------------------------
 //TaskHandle_t defaultTaskHandle;
@@ -682,10 +695,6 @@ void BMS_MonitorTask(void const * argument)
 		}
 		xSemaphoreGive(UART_MUTEX);
 
-		Bridge_CheckFaults();
-		Stack_CheckFaultSummary();
-		Send_GUI_Reading ();
-
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
 
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
@@ -694,7 +703,7 @@ void BMS_MonitorTask(void const * argument)
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 			{
 				buffer.slave_id = i;
-				buffer.value = (uint16_t)readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
+				buffer.value = (int16_t)(readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1][0])));
 				xQueueSendToBack(bmsTempQueue, &buffer.value, (TickType_t)10);
 				vTaskDelay(pdMS_TO_TICKS(5));
 			}
@@ -726,6 +735,10 @@ void BMS_CommadTask(void const * argument)
 			case CMD_READ_BRIDGE_FS:
 				//fault_summary = Send to bridge to read fault summary
 				xTaskNotify(req.requester, NOTIFY_BMS_GOT_FS, eSetBits);
+				Bridge_CheckFaults();
+				Stack_CheckFaultSummary();
+				Send_GUI_Reading ();
+				cmd_res = 0;
 				break;
 
 			case CMD_READ_GPIO_ADC:
