@@ -142,8 +142,7 @@ SemaphoreHandle_t UART_MUTEX;
 uint8_t fault_summary = 0;
 
 //Private user Variables
-uint8_t received_data1 = 0;
-uint8_t received_data2 = 0;
+uint8_t received_data = 0;
 uint8_t Buffer[5];
 
 uint8_t init_done = 0;
@@ -233,7 +232,7 @@ int16_t BMS_data_convert(BMS_DataType_t type, int data)
 		data = (int16_t)((float)(data) * VOLT_CONV * 100);
 		break;
 	case BMS_DATA_TEMPERATURE:
-		data = (int16_t)(((float)(data) * VLSB_GPIO / 1000000) * 100);
+		data = (int16_t)(((float)(data) * VLSB_GPIO) * 100);
 		break;
 	}
 
@@ -568,29 +567,21 @@ void BMS_Init(void const * argument)
 #endif
 
 	//todo make it a for loop on the number of slaves
-	if(configure_OVUV(1, 16) != 1)
+	for(uint8_t i = 1; i < TOTALBOARDS; i++)
 	{
-		//error
-		while(1);
+
+		if(configure_OVUV(i, 16) != 1)
+		{
+			//error
+			while(1);
+		}
+		if(configure_OTUT(i, 0) != 1)
+		{
+			//error
+			while(1);
+		}
 	}
 
-	if(configure_OVUV(2, 16) != 1)
-	{
-		//error
-		while(1);
-	}
-
-	if(configure_OTUT(1, 0) != 1)
-	{
-		//error
-		while(1);
-	}
-
-	if(configure_OTUT(2, 0) != 1)
-	{
-		//error
-		while(1);
-	}
 	Bridge_FaultInit();
 	Stack_FaultInit();
 
@@ -606,9 +597,11 @@ void BMS_Init(void const * argument)
 	vTaskDelay(10);
 
 	//Verifying ADC init
-	readReg(1, BQ79616_ADC_CTRL1, &received_data1, 1, 0, FRMWRT_SGL_R);
+	for(uint8_t i = 1; i < TOTALBOARDS; i++)
+	{
+		readReg(i, BQ79616_ADC_CTRL1, &received_data, 1, 0, FRMWRT_SGL_R);
+	}
 
-	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
 #ifdef SIMPLETASK
 
@@ -703,8 +696,9 @@ void BMS_MonitorTask(void const * argument)
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 			{
 				buffer.slave_id = i;
-				buffer.value = (int16_t)(readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1][0])));
-				xQueueSendToBack(bmsTempQueue, &buffer.value, (TickType_t)10);
+				float temperature_temp = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1][0]));
+				buffer.value = (int16_t)(temperature_temp);
+				xQueueSendToBack(bmsTempQueue, &temperature_temp, (TickType_t)10);
 				vTaskDelay(pdMS_TO_TICKS(5));
 			}
 			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
@@ -739,7 +733,7 @@ void BMS_CommadTask(void const * argument)
 				xTaskNotify(req.requester, NOTIFY_BMS_GOT_FS, eSetBits);
 				Bridge_CheckFaults();
 				Stack_CheckFaultSummary();
-//				Send_GUI_Reading ();
+				//				Send_GUI_Reading ();
 				cmd_res = 0;
 				break;
 

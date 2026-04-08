@@ -18,7 +18,7 @@
 #define FRMWRT_ALL_W	0x50    //broadcast WRITE
 #define FRMWRT_REV_ALL_W 0x60   //broadcast WRITE reverse direction
 
-#define VLSB_GPIO       152.59  // 1 LSB in μV (replace with datasheet value)
+#define VLSB_GPIO       0.00015259  // 1 LSB in μV (replace with datasheet value)
 
 
    //0x02 to 0x0E: range from 2700 mV to 3000 mV  //0x12 to 0x1E: range from 3500 mV to 3800 mV

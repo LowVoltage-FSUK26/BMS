@@ -350,15 +350,17 @@ void Bridge_AutoAddress(void)
 	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 
 	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-	readReg(1, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-
+	for(uint8_t i = 1; i < TOTALBOARDS; i++)
+	{
+		readReg(i, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	}
 	return;
 }
 
@@ -811,7 +813,7 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 
 	//enable TSERF
 	writeReg(dev_address, BQ79616_CONTROL2, 0x01, 1, FRMWRT_SGL_W);
-	vTaskDelay(6);
+	vTaskDelay(8); //tTSREF_ON + 1.35ms = 6 + 1.35 = 7.35 ms required delay
 
 	//configure all GPIOs for thermistors
 	/*
@@ -852,7 +854,7 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 		//raw_value = (int16_t)((hi << 8) | lo);
 		raw_value =((buffer[1] << 8) | buffer[2]);
 		*raw_value_ptr = raw_value;
-		voltage_uV = ((float)(raw_value)) *VLSB_GPIO/1000000;
+		voltage_uV = ((float)(raw_value)) *VLSB_GPIO;
 	}
 	return voltage_uV;
 }
