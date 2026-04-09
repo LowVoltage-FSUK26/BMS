@@ -10,6 +10,13 @@
 #include "bq79616.h"
 #include "bq79600.h"
 #include "BMS_Config.h"
+
+#include "event_groups.h"
+
+EventGroupHandle_t faultEventGroup;
+
+#define FAULT_EVENT_BIT   (1 << 0)
+
 void Bridge_FaultInit(void)
 {
 	uint8_t bridge_faultMask = 0x00;   // Mask FTONE + HB + FCOMM
@@ -346,8 +353,24 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 	if(GPIO_PIN== GPIO_PIN_8)
 	{
 
-while(1);
+		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+		xEventGroupSetBitsFromISR(
+				faultEventGroup,
+				FAULT_EVENT_BIT,
+				&xHigherPriorityTaskWoken
+		);
+
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 
 	}
 }
 
+//while(1)
+//		{
+//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+//					vTaskDelay(1000);
+//					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+//					vTaskDelay(1000);
+//
+//		}
