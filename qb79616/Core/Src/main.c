@@ -32,7 +32,8 @@
 #include "semphr.h"
 #include "event_groups.h"
 #include "GUI.h"
-
+#include "Faults.h"
+#include "Voltages.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -158,8 +159,7 @@ float gpio8_voltage=5.254654;
 
 UBaseType_t uxHighWaterMark;
 extern EventGroupHandle_t uartEventGroup;
-extern EventGroupHandle_t faultEventGroup;
-#define FAULT_EVENT_BIT   (1 << 0)
+
 //------------------------
 //    CAN Variables
 //-----------------------

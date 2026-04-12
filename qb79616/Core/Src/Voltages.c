@@ -9,7 +9,7 @@
 #include "bq79616.h"
 #include "bq79600.h"
 #include "BMS_Config.h"
-
+#include "Voltages.h"
 uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 
 	uint8_t dev_stat;

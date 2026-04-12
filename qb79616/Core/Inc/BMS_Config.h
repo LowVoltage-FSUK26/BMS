@@ -74,10 +74,7 @@ typedef struct {
     uint8_t GPIO_NUM;
     uint8_t BOARD_NUM;
 } BMS_Request_t;
-void Bridge_FaultInit(void);
-void Bridge_CheckFaults(void);
-void Stack_FaultInit(void);
-void Stack_CheckFaultSummary(void);
+
 
 /* ------------------------------------
      BMS Configuration Prototypes

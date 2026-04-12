@@ -87,15 +87,13 @@ int readReg(uint8_t bID, uint16_t wAddr, uint8_t * pData, uint8_t bLen, uint32_t
 int readFrameReq(uint8_t bID, uint16_t wAddr, uint8_t bByteToReturn, uint8_t bWriteType);
 uint16_t CRC16(uint8_t *pBuf, int nLen);
 void RunCB();
-uint8_t readCellVoltages(uint8_t boardNum, uint8_t numCells, int *totalV);
-uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, uint16_t *cellVoltages);
 float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr);
 
 /* ------------------------------------
      3. Configurations functions
    ------------------------------------
 */
-uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells);
+
 uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors);
 uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType);
 void nfault_enable();

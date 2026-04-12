@@ -12,10 +12,10 @@
 #include "BMS_Config.h"
 
 #include "event_groups.h"
+#include "Faults.h"
 
 EventGroupHandle_t faultEventGroup;
 
-#define FAULT_EVENT_BIT   (1 << 0)
 
 void Bridge_FaultInit(void)
 {
@@ -363,11 +363,3 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 	}
 }
 
-//while(1)
-//		{
-//			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-//					vTaskDelay(1000);
-//					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-//					vTaskDelay(1000);
-//
-//		}

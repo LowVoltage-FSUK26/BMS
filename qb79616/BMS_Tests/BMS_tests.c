@@ -14,6 +14,8 @@
 #include "FreeRTOSConfig.h"
 #include "task.h"
 
+#include "Voltages.h"
+
 extern UART_HandleTypeDef huart2;
 
 uint16_t cellVoltages_board[SLAVEBOARDS][16] = {0};
