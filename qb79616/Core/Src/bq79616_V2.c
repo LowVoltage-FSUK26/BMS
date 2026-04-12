@@ -803,7 +803,7 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	uint8_t cb_coolOff= 0x0F; //reset values of OTCB_THR and COOLOFF hysteresis
 	uint8_t dev_stat;
 	uint8_t goCmd = 0x05;
-	uint8_t gpioConf= 0x12; //for simplicity enable all gpio thermistors
+	uint8_t gpioConf= 0x09; //for simplicity enable all gpio thermistors
 
 	//set UT and OT thresholds
 	writeReg(dev_address, BQ79616_OTUT_THRESH, ot_ut ,1 , FRMWRT_SGL_W);
@@ -851,6 +851,7 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
 
 		//raw_value = (int16_t)((hi << 8) | lo);
+
 		raw_value =((buffer[0] << 8) | buffer[1]);
 		*raw_value_ptr = raw_value;
 		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
