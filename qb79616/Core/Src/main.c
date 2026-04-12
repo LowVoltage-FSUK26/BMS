@@ -135,10 +135,6 @@ QueueHandle_t bmsTempQueue;
 SemaphoreHandle_t UART_MUTEX;
 #endif
 
-//----------------
-//Fault Variables
-//----------------
-uint8_t fault_summary = 0;
 
 //Private user Variables
 uint8_t received_data1 = 0;
@@ -150,11 +146,6 @@ uint8_t init_done = 0;
 float battery_volt = 0;
 extern uint16_t cellVoltages_board[SLAVEBOARDS][16];
 uint16_t GpioReadings[SLAVEBOARDS][4];
-
-uint8_t hi, lo;
-
-float gpio1_voltage=5;
-float gpio8_voltage=5.254654;
 
 
 UBaseType_t uxHighWaterMark;
@@ -565,20 +556,25 @@ void BMS_Init(void const * argument)
 	Stack_FaultInit();
 
 	vTaskDelay(10);
-	configureGPIO(Thermistor_GPIO, BQ79616_GPIO_ADC_OTUT_INPUT, 0, FRMWRT_STK_W);
-	//	configureGPIO8_ADC();
+
 	//=============================
 	//Initializing Daisy Chain ADCs
 	//=============================
 	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
 	vTaskDelay(10);
-	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
-	vTaskDelay(10);
 
-	//Verifying ADC init
-	readReg(1, BQ79616_ADC_CTRL1, &received_data1, 1, 0, FRMWRT_SGL_R);
+	uint8_t dev_stat;
+	readReg(1, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
+	if((dev_stat& 0x01) == 0){
+		//error
+		while(1);
+	}
+	readReg(2, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
+	if((dev_stat& 0x01) == 0){
+		//error
+		while(1);
+	}
 
-	readReg(2, BQ79616_ADC_CTRL1, &received_data2, 1, 0, FRMWRT_SGL_R);
 
 #ifdef SIMPLETASK
 
@@ -607,7 +603,7 @@ void BMS_Diagnostic(void const * argument)
 		{
 			for(uint8_t j = 1; j <= 4; j++)
 			{
-				gpio8_voltage = readGPIOVoltage(i, j, &(GpioReadings[i - 1][j - 1]));
+				readGPIOVoltage(i, j, &(GpioReadings[i - 1][j - 1]));
 				vTaskDelay(50);
 			}
 
@@ -621,7 +617,7 @@ void BMS_Diagnostic(void const * argument)
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument)
 {
-float buffer = 0;
+	float buffer = 0;
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
@@ -631,8 +627,6 @@ float buffer = 0;
 		Bridge_CheckFaults();
 		Stack_CheckFaultSummary();
 		Send_GUI_Reading();
-
-
 
 		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 		xSemaphoreGive(UART_MUTEX);
@@ -651,12 +645,7 @@ float buffer = 0;
 			}
 
 		}
-		//		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
-		//		{
-		//			buffer = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1]));
-		//			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-		//			vTaskDelay(pdMS_TO_TICKS(5));
-		//		}
+
 		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		xSemaphoreGive(UART_MUTEX);
 
@@ -664,7 +653,6 @@ float buffer = 0;
 		vTaskDelay(100);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 		vTaskDelay(100);
-		//vTaskDelay(50);
 	}
 }
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -757,14 +745,14 @@ void BMS_ReadTempTask(void const * argument)
 		//wait for MSG to arrive
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
-		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
-		{
-			//process Voltage reading
-		}
-		else
-		{
-			//indicate message is not received
-		}
+		//		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
+		//		{
+		//			//process Voltage reading
+		//		}
+		//		else
+		//		{
+		//			//indicate message is not received
+		//		}
 
 	}
 }
@@ -811,8 +799,8 @@ void BMS_FaultTask(void const * argument)
 				portMAX_DELAY
 		);
 
-//		Bridge_CheckFaults();
-//		Stack_CheckFaultSummary();
+		//		Bridge_CheckFaults();
+		//		Stack_CheckFaultSummary();
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 		vTaskDelay(1000);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
