@@ -635,6 +635,7 @@ void BMS_MonitorTask(void const * argument)
 		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 		xSemaphoreGive(UART_MUTEX);
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
+
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 
@@ -808,12 +809,13 @@ void BMS_FaultTask(void const * argument)
 				portMAX_DELAY
 		);
 
-		Bridge_CheckFaults();
-		Stack_CheckFaultSummary();
+//		Bridge_CheckFaults();
+//		Stack_CheckFaultSummary();
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 		vTaskDelay(1000);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
 		vTaskDelay(1000);
+		Send_GUI_Reading ();
 
 	}
 
