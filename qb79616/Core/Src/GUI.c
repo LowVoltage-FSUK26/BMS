@@ -7,13 +7,12 @@
 #include <stdint.h>
 #include "BMS_Config.h"
 #include "GUI.h"
+#include "Temperatures.h"
+#include "Faults.h"
+#include "Voltages.h"
+#include "Temperatures.h"
+
 extern UART_HandleTypeDef huart2; //huart2 is used only for debugging
-
-extern uint16_t cellVoltages_board[SLAVEBOARDS][16];
-extern uint16_t GpioReadings[SLAVEBOARDS][4];
-extern uint8_t bridge_faultSummary ;
-extern uint8_t slaveFaultS[SLAVEBOARDS];
-
 
 
 static char HEX_DIGITS[] = "0123456789ABCDEF";

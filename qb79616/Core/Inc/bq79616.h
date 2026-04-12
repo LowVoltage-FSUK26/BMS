@@ -52,14 +52,7 @@ typedef enum
 } BQ79616_GPIO_Config_t;
 
 
-/* ------------------------------------
-     function protoypes
-   ------------------------------------
-*/
-//delay function
-void DELAY_init(void);
-void DELAY_microseconds(uint16_t us);
-void TIM2_Delay_ms(uint32_t delay_ms);
+
 
 /* ------------------------------------
      1. ping functions
@@ -87,18 +80,8 @@ int readReg(uint8_t bID, uint16_t wAddr, uint8_t * pData, uint8_t bLen, uint32_t
 int readFrameReq(uint8_t bID, uint16_t wAddr, uint8_t bByteToReturn, uint8_t bWriteType);
 uint16_t CRC16(uint8_t *pBuf, int nLen);
 void RunCB();
-float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr);
 
-/* ------------------------------------
-     3. Configurations functions
-   ------------------------------------
-*/
 
-uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors);
-uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType);
-void nfault_enable();
-void ResetAllFaults(uint8_t bID, uint8_t bWriteType);
-void MaskAllFaults(uint8_t bID, uint8_t bWriteType);
 
 /* ------------------------------------
      BQ79616 Register Definitions

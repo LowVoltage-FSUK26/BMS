@@ -34,6 +34,7 @@
 #include "GUI.h"
 #include "Faults.h"
 #include "Voltages.h"
+#include "Temperatures.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,22 +45,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-// Example register addresses (replace with actual addresses from datasheet)
-#define CONTROL2        BQ79616_CONTROL2
-
-#define GPIO_CONF1      BQ79616_GPIO_CONF1
-#define GPIO1_ADC_BIT   0x12
-#define ADC_CTRL1       BQ79616_ADC_CTRL1
-#define MAIN_GO_BIT     0x01
-
-#define GPIO1_HI_REG    GPIO1_HI
-#define GPIO1_LO_REG    GPIO1_LO
-
-#define R1              10000 // Pull-up resistor for thermistor in ohms
-
-#define DIETEMP1_HI_REG DIETEMP1_HI  // High byte register of Die Temperature
-#define DIETEMP1_LO_REG DIETEMP1_LO  // Low byte register of Die Temperature
-#define VLSB_MAIN_DIETEMP1 0.0078125 // LSB value in °C
 
 //---------------------
 //RTOS MACROS
@@ -144,8 +129,8 @@ uint8_t Buffer[5];
 uint8_t init_done = 0;
 
 float battery_volt = 0;
-extern uint16_t cellVoltages_board[SLAVEBOARDS][16];
-uint16_t GpioReadings[SLAVEBOARDS][4];
+
+
 
 
 UBaseType_t uxHighWaterMark;

@@ -47,54 +47,7 @@ uint16_t wCRC = 0;
 uint16_t wCRC16 = 0;
 int crc_i = 0;
 
-uint8_t int_ack=0;
 
-/* 
- * A microsecond delay function.
- *
- * Note: HAL_Delay() provides millisecond delays. For sub-millisecond delays,
- * you can implement delay_us() using a hardware timer or the DWT cycle counter.
- * The following is a simple example using the DWT (make sure to enable it at startup).
- */
-// Helper: Delay in microseconds.
-uint32_t gSysTickLoad = 0;
-uint32_t gTicksPerMicrosecondFloor = 0;
-uint32_t gTicksPerMicrosecondMod1000 = 0;
-
-void DELAY_init(void)
-{
-	//== Prep for DELAY_microseconds() ==
-
-	//SysTick->LOAD gets set to the number of ticks in a millisecond, in HAL_SYSTICK_Config(), which
-	//is called from HAL_Init(). So we don't need to determine or assume clock frequency, and can
-	//instead just work backwards from there.
-	gSysTickLoad                = SysTick->LOAD;
-	gTicksPerMicrosecondFloor   = (gSysTickLoad+1) / 1000;
-	//This will be zero unless the clock is not an even number of MHz.
-	gTicksPerMicrosecondMod1000 = (gSysTickLoad+1) % 1000;
-}
-void inline __attribute__((always_inline)) DELAY_microseconds(uint16_t us)
-												{
-	uint32_t startTick = SysTick->VAL; //get start tick as soon as possible
-
-	//The asserts and division that follow dictate the minimum possible delay (smallest
-	//supported "us" parameter). They provide sanity checks and accuracy as a trade-off.
-	//assert(gSysTickLoad == SysTick->LOAD); //make sure DELAY_init got called and nothing has changed since
-	//assert(us < 1000); //otherwise, infinite loop!
-
-	uint32_t delayTicks = gTicksPerMicrosecondFloor * us;
-	delayTicks += (500 + gTicksPerMicrosecondMod1000 * us) / 1000; //Probably a nop
-
-	while(1)
-	{
-		uint32_t currentTicks = SysTick->VAL;
-		//Handle SysTick->VAL hitting zero and resetting back to SysTick->LOAD.
-		uint32_t elapsedTicks = currentTicks < startTick ? startTick - currentTicks :
-				gSysTickLoad + startTick - currentTicks;
-		if(elapsedTicks >= delayTicks)
-			break;
-	}
-												}
 
 /* 
  * The helping functions.
@@ -560,7 +513,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 
-volatile uint32_t ms_counter = 0;
+
 
 
 
@@ -722,141 +675,8 @@ void check_cell_balancing(uint8_t boardNum, uint8_t cellsNum){
 
 }
 
-//fault related functions
-void ResetAllFaults(uint8_t bID, uint8_t bWriteType)
-{
-	//BROADCAST INCLUDES EXTRA FUNCTIONALITY TO OVERWRITE THE CUST_CRC WITH THE CURRENT SETTINGS
-	if(bWriteType==FRMWRT_ALL_W)
-	{
-		//READ THE CALCULATED CUSTOMER CRC VALUES
-		readReg(0, CUST_CRC_RSLT_HI, fault_frame, 2, 0, FRMWRT_ALL_R);
-		//OVERWRITE THE CRC OF EVERY BOARD IN THE STACK WITH THE CORRECT CRC
-		for(currentBoard=0; currentBoard<TOTALBOARDS; currentBoard++)
-		{
-			//THE RETURN FRAME STARTS WITH THE HIGHEST BOARD FIRST, SO THIS WILL WRITE THE HIGHEST BOARD FIRST
-			writeReg(TOTALBOARDS-currentBoard-1, BQ79616_CUST_CRC_HI, fault_frame[currentBoard*8+4] << 8 | fault_frame[currentBoard*8+5], 2, FRMWRT_SGL_W);
-		}
-		//NOW CLEAR EVERY FAULT
-		writeReg(0, FAULT_RST1, 0xFFFF, 2, FRMWRT_ALL_W);
-	}
-	else if(bWriteType==FRMWRT_SGL_W)
-	{
-		writeReg(bID, FAULT_RST1, 0xFFFF, 2, FRMWRT_SGL_W);
-	}
-	else if(bWriteType==FRMWRT_STK_W)
-	{
-		writeReg(0, FAULT_RST1, 0xFFFF, 2, FRMWRT_STK_W);
-	}
-}
 
-void MaskAllFaults(uint8_t bID, uint8_t bWriteType)
-{
-	if(bWriteType==FRMWRT_ALL_W)
-	{
-		writeReg(0, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_ALL_W);
-	}
-	else if(bWriteType==FRMWRT_SGL_W)
-	{
-		writeReg(bID, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_SGL_W);
-	}
-	else if(bWriteType==FRMWRT_STK_W)
-	{
-		writeReg(0, BQ79616_FAULT_MSK1, 0xFFFF, 2, FRMWRT_STK_W);
-	}
-}
-
-//enable faults to raise nfault flag
-void nfault_enable(){
-	//reset conf register to its default value
-	uint8_t rstVal = 0x54;
-	writeReg(currentBoard, BQ79616_DEV_CONF, 0x54, 1, FRMWRT_SGL_W);
-}
 
 void set_VCB_DONE(uint16_t vDone){
 	//????????????
 }
-
-// Function to configure GPIO1 as specified input
-uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType){
-
-	if(BID >= SLAVEBOARDS)
-		return 2;		// Invalid Board ID
-
-	if (GPIO_NUM < 1 || GPIO_NUM > 8)
-	    return 3;   	// Invalid GPIO
-
-	if (GPIO_MODE > 0x07)
-	    return 4;		// Value must fit in 3 bits
-
-	if ((bWriteType != FRMWRT_SGL_W) && (bWriteType != FRMWRT_STK_W) )
-	    return 5;		// Invalid bWriteType
-
-	uint8_t reg_addr = BQ79616_GPIO_CONF1 + ((GPIO_NUM - 1)/2);
-	uint8_t reg_val = (GPIO_MODE << (!(GPIO_NUM % 2) * 3));
-	writeReg((bWriteType == FRMWRT_SGL_W)?BID : 0, reg_addr, reg_val, 1, bWriteType);
-	return 1; 			//Correct Config
-}
-
-uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
-
-	uint8_t ot_ut = 0xE0;  //reset value UT= 80% and OT= 39%
-	uint8_t cb_coolOff= 0x0F; //reset values of OTCB_THR and COOLOFF hysteresis
-	uint8_t dev_stat;
-	uint8_t goCmd = 0x05;
-	uint8_t gpioConf= 0x09; //for simplicity enable all gpio thermistors
-
-	//set UT and OT thresholds
-	writeReg(dev_address, BQ79616_OTUT_THRESH, ot_ut ,1 , FRMWRT_SGL_W);
-	writeReg(dev_address, BQ79616_OTCB_THRESH, cb_coolOff ,1 , FRMWRT_SGL_W);
-
-	//enable TSERF
-	writeReg(dev_address, BQ79616_CONTROL2, 0x01, 1, FRMWRT_SGL_W);
-	vTaskDelay(2);
-
-	//configure all GPIOs for thermistors
-	/*
-	writeReg(dev_address, BQ79616_GPIO_CONF1, gpioConf, 1, FRMWRT_SGL_W);
-	writeReg(dev_address, BQ79616_GPIO_CONF2, gpioConf, 1, FRMWRT_SGL_W);
-	writeReg(dev_address, BQ79616_GPIO_CONF3, gpioConf, 1, FRMWRT_SGL_W);
-	 */
-
-	writeReg(dev_address, BQ79616_GPIO_CONF1, gpioConf, 1, FRMWRT_SGL_W);// Enable GPIO1,2 for thermistor
-	writeReg(dev_address, BQ79616_GPIO_CONF2, gpioConf, 1, FRMWRT_SGL_W);// Enable GPIO3,4 for thermistor
-	//set OTUT mode
-	writeReg(dev_address, BQ79616_OTUT_CTRL, OTUT_MODE,1 , FRMWRT_SGL_W);
-
-	//set Vcb_done to Vuv
-
-	//Start Protection
-	writeReg(dev_address, BQ79616_OTUT_CTRL, goCmd ,1 , FRMWRT_SGL_W);
-
-	//read back protection status to ensure its ON
-	readReg(dev_address, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
-	if((dev_stat& 0x10) == 0){
-		return 0;   //error OTUT is not enabled
-	}
-	return 1;
-}
-
-
-float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
-
-	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
-	int16_t raw_value = 0;
-	uint16_t buffer[2];
-	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
-	{
-
-		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R);
-		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
-
-		//raw_value = (int16_t)((hi << 8) | lo);
-
-		raw_value =((buffer[0] << 8) | buffer[1]);
-		*raw_value_ptr = raw_value;
-		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
-	}
-	return voltage_uV;
-}
-
-

@@ -7,7 +7,10 @@
 
 #ifndef INC_FAULTS_H_
 #define INC_FAULTS_H_
+#include "event_groups.h"
 
+extern uint8_t bridge_faultSummary ;
+extern uint8_t slaveFaultS[SLAVEBOARDS];
 
 extern EventGroupHandle_t faultEventGroup;
 #define FAULT_EVENT_BIT   (1 << 0)
