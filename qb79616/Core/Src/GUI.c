@@ -45,6 +45,7 @@ void UART_Send_Board_Frame_CharByChar(uint8_t board_num)
 	{
 		// ----- Fault -----
 		uint8_to_hex2(temp,bridge_faultSummary );
+
 		for(int j=0;j<2;j++)
 			HAL_UART_Transmit(&huart2, (uint8_t*)&temp[j], 1, HAL_MAX_DELAY);
 
@@ -93,7 +94,7 @@ void UART_Send_Board_Frame_CharByChar(uint8_t board_num)
 
 void Send_GUI_Reading (void)
 {
-	for(uint8_t i=1;i<TOTALBOARDS;i++)
+	for(uint8_t i=0;i<TOTALBOARDS;i++)
 	{
 		UART_Send_Board_Frame_CharByChar(i);
 		vTaskDelay(pdMS_TO_TICKS(1000));

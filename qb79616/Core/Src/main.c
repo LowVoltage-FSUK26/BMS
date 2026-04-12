@@ -258,7 +258,7 @@ int main(void)
 	MX_CAN_Init();
 	/* USER CODE BEGIN 2 */
 
-	BMS_Can_Init();
+	//BMS_Can_Init();
 
 
 	//==================Define EventGroups===================//
@@ -287,7 +287,7 @@ int main(void)
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
+	//xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
 #ifdef SIMPLETASK
 	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 128, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
 #elif defined(EVENT_GROUP)
@@ -617,11 +617,11 @@ void BMS_Diagnostic(void const * argument)
 
 
 }
-
+float buffer = 0;
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument)
 {
-	float buffer = 0;
+
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
@@ -630,8 +630,7 @@ void BMS_MonitorTask(void const * argument)
 		buffer = test2();
 		Bridge_CheckFaults();
 		Stack_CheckFaultSummary();
-		Send_GUI_Reading ();
-
+		Send_GUI_Reading();
 
 		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 		xSemaphoreGive(UART_MUTEX);
@@ -641,7 +640,7 @@ void BMS_MonitorTask(void const * argument)
 
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			for(uint8_t j = 1; j <= 4; j++)
+			for(uint8_t j = 1; j <= 2; j++)
 			{
 				buffer = readGPIOVoltage(i, j, &(GpioReadings[i - 1][j - 1]));
 				xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
@@ -811,12 +810,10 @@ void BMS_FaultTask(void const * argument)
 
 		Bridge_CheckFaults();
 		Stack_CheckFaultSummary();
-
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 		vTaskDelay(1000);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
 		vTaskDelay(1000);
-
 
 	}
 

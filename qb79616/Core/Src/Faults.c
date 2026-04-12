@@ -220,7 +220,7 @@ void Slave_FaultInit(uint8_t slaveID)
 	uint8_t rst2 = 0x7F;
 
 	uint8_t msk1 = 0x87;
-	uint8_t msk2 = 0xff;
+	uint8_t msk2 = 0xEF;
 	/* Clear faults */
 	writeReg(slaveID, FAULT_RST1, rst1, 1, FRMWRT_SGL_W);
 	writeReg(slaveID, FAULT_RST2, rst2, 1, FRMWRT_SGL_W);
@@ -290,10 +290,10 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 	/*************** OV / UV ***************/
 	if(slaveFaultSummary & SLAVE_FLT_OVUV)
 	{
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-		vTaskDelay(5000);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-		vTaskDelay(5000);
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+//		vTaskDelay(5000);
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+//		vTaskDelay(5000);
 
 		// Read FAULT_OV1/2 + FAULT_UV1/2
 	}
@@ -301,10 +301,7 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 	/*************** OT / UT ***************/
 	if(slaveFaultSummary & SLAVE_FLT_OTUT)
 	{
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		vTaskDelay(5000);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		vTaskDelay(5000);
+
 		// Read FAULT_OT1/2 + FAULT_UT1/2
 	}
 
