@@ -156,8 +156,23 @@ float gpio1_voltage=5;
 float gpio8_voltage=5.254654;
 
 extern volatile uint32_t ms_counter ;
+void enableTSREF(void) {
+	writeReg(1, BQ79616_CONTROL2, 0x01, 1,FRMWRT_SGL_W);
+	writeReg(2, BQ79616_CONTROL2, 0x01, 1,FRMWRT_SGL_W);
 
+}
+float voltageTSREF_uV;
+float readTSREFVoltage(void) {
+	uint8_t buffer[1];
+	int16_t raw_value;
+	 readReg(1, TSREF_HI, &buffer[0], 1, 0, FRMWRT_SGL_R);
+	 readReg(1, TSREF_LO, &buffer[1], 1, 0, FRMWRT_SGL_R);
 
+	raw_value =((buffer[1] << 8) | buffer[2]);
+	voltageTSREF_uV = raw_value * VLSB_GPIO;
+
+	return voltageTSREF_uV;
+}
 UBaseType_t uxHighWaterMark;
 extern EventGroupHandle_t uartEventGroup;
 extern EventGroupHandle_t faultEventGroup;
@@ -561,6 +576,8 @@ void BMS_Init(void const * argument)
 		//error
 		while(1);
 	}
+//	enableTSREF();
+
 	Bridge_FaultInit();
 	Stack_FaultInit();
 
@@ -632,6 +649,8 @@ void BMS_MonitorTask(void const * argument)
 		Stack_CheckFaultSummary();
 		Send_GUI_Reading();
 
+		readTSREFVoltage();
+
 		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 		xSemaphoreGive(UART_MUTEX);
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
@@ -641,7 +660,7 @@ void BMS_MonitorTask(void const * argument)
 
 		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 		{
-			for(uint8_t j = 1; j <= 2; j++)
+			for(uint8_t j = 1; j <= 4; j++)
 			{
 				buffer = readGPIOVoltage(i, j, &(GpioReadings[i - 1][j - 1]));
 				xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
