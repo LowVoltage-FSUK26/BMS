@@ -309,7 +309,7 @@ int main(void)
 	//==================Define Queues===================//
 
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
+	//	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
 	bmsTempQueue = xQueueCreate(3, sizeof(float));
 	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
 	bmsCanQueue = xQueueCreate(5, sizeof(BMS_CAN_Queue_Message_t));
@@ -698,7 +698,7 @@ void BMS_MonitorTask(void const * argument)
 				buffer.slave_id = i;
 				float temperature_temp = readGPIOVoltage(i, Thermistor_GPIO, &(GpioReadings[i-1][0]));
 				buffer.value = (int16_t)(temperature_temp);
-				xQueueSendToBack(bmsTempQueue, &temperature_temp, (TickType_t)10);
+				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 				vTaskDelay(pdMS_TO_TICKS(5));
 			}
 			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
@@ -797,6 +797,7 @@ void BMS_CellVoltageTask(void const * argument)
 			}
 			else
 			{
+				xQueueSendToBack(bmsMeasurmentsQueue, &volt_buffer, (TickType_t)10);
 				continue;
 			}
 		}
@@ -822,6 +823,12 @@ void BMS_ReadTempTask(void const * argument)
 	req.BOARD_NUM = 1;
 	req.GPIO_NUM = 8;
 
+	BMS_Queue_Measurement_t temperature_buffer;
+	BMS_CAN_Queue_Message_t can_buffer;
+	can_buffer.type = BMS_DATA_TEMPERATURE;
+	memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
+	uint8_t prev_first_ID = 0;
+
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
@@ -832,13 +839,58 @@ void BMS_ReadTempTask(void const * argument)
 		//wait for MSG to arrive
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
-		if(xQueueReceive(bmsTempQueue, &gpio8_voltage, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsMeasurmentsQueue, &temperature_buffer, (TickType_t)10) == pdTRUE)
 		{
-			//process Voltage reading
+			if(temperature_buffer.type == BMS_DATA_TEMPERATURE)
+			{
+
+
+				if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) &&  (temperature_buffer.slave_id != prev_first_ID))
+				{
+					if(prev_first_ID != 0)
+					{
+						can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
+						xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+						memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
+					}
+					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
+					prev_first_ID = temperature_buffer.slave_id;
+				}
+				else if(temperature_buffer.slave_id % CAN_DATA_PER_FRAME != 1)
+				{
+					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
+				}
+				else if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) && (temperature_buffer.slave_id == prev_first_ID))
+				{
+					can_buffer.first_slave_id = prev_first_ID;
+					xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+					memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
+					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
+					prev_first_ID = temperature_buffer.slave_id;
+				}
+
+//					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
+//
+//					if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME) == 0)
+//					{
+//						can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
+//						xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+//						memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
+//					}
+//
+
+			}
+			else
+			{
+				xQueueSendToBack(bmsMeasurmentsQueue, &temperature_buffer, (TickType_t)10);
+				continue;
+			}
 		}
 		else
 		{
 			//indicate message is not received
+			//todo Optimize wait delay to be dynamic to the number of slaves
+			xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 		}
 
 	}
@@ -870,9 +922,10 @@ void BMS_CanTask(void const * argument)
 				BMS_CAN_TxHandler.StdId = CAN_TEMP_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
 			}
 
-			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, (uint8_t*)&(CAN_Queue_Buffer.Data), &TxMailbox) == HAL_OK)
+			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, (uint8_t*)&(CAN_Queue_Buffer.Data), &TxMailbox) != HAL_OK)
 			{
 				//error
+				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 			}
 
 			vTaskDelay(pdMS_TO_TICKS(100));
