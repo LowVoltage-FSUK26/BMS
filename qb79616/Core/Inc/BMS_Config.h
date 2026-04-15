@@ -27,7 +27,7 @@
 #define TOTALBOARDS 		3       //boards in stack (including the bridge)
 #define SLAVEBOARDS			(TOTALBOARDS - 1)
 #define ACTIVE_CELLS		16
-#define Thermistor_GPIO 	8
+#define Thermistor_GPIO 	2
 #define BRIDGEUART			1
 #define DEBUGUART			2
 #define BATTERYVOLT_ID		(TOTALBOARDS + (4 - (TOTALBOARDS % 4)))
