@@ -111,8 +111,6 @@ EventGroupHandle_t BMS_EventGroup;
 
 QueueHandle_t bmsCanQueue;
 QueueHandle_t bmsCmdQueue;
-QueueHandle_t bmsVoltageQueue;
-QueueHandle_t bmsTempQueue;
 QueueHandle_t bmsMeasurmentsQueue;
 
 //----------------
@@ -284,8 +282,6 @@ int main(void)
 	//==================Define Queues===================//
 
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	//	bmsVoltageQueue = xQueueCreate(3, sizeof(float));
-	bmsTempQueue = xQueueCreate(3, sizeof(float));
 	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
 	bmsCanQueue = xQueueCreate(5, sizeof(BMS_CAN_Queue_Message_t));
 
@@ -919,7 +915,7 @@ void BMS_CanTask(void const * argument)
 				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 			}
 
-			vTaskDelay(pdMS_TO_TICKS(100));
+			vTaskDelay(pdMS_TO_TICKS(50));
 		}
 	}
 
