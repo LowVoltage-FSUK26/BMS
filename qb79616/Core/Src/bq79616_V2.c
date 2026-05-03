@@ -303,15 +303,17 @@ void Bridge_AutoAddress(void)
 	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 
 	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-	readReg(1, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-
+	for(uint8_t i = 1; i < TOTALBOARDS; i++)
+	{
+		readReg(i, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	}
 	return;
 }
 
