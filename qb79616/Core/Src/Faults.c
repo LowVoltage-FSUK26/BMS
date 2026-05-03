@@ -360,6 +360,58 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 
 		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 
+<<<<<<< HEAD
+=======
+		//determine fault condition and implement appropriate handling
+		if(summary & 0x01)
+		{
+			/* PWR fault
+				read FAULT_PWR1, FAULT_PWR2, and FAULT_PWR3 registers
+			 */
+
+		}
+		if(summary & 0x02)
+		{
+			/* SYS FAULT
+				read FAULT_SYS register
+			 */
+		}
+		if(summary & 0x04)
+		{
+			/* OVUV FAULT
+				read FAULT_OV1, FAULT_OV2, FAULT_UV1, FAULT_UV2 registers
+			 */
+			//turn on led
+		}
+		if(summary & 0x08)
+		{
+			/* OTUT FAULT
+				read FAULT_OT1, FAULT_OT2, FAULT_UT1, FAULT_UT2 registers
+			 */
+		}
+		if(summary & 0x10)
+		{
+			/* COMM FAULT
+				read FAULT_COMM1, FAULT_COMM2, FAULT_COMM3 registers
+				don't read registers that are masked
+			 */
+		}
+		if(summary & 0x20)
+		{
+			/* OTP FAULT
+                read FAULT_OTP register
+			 */
+		}
+		if(summary & 0x40)
+		{
+		}
+		if(summary & 0x80)
+		{
+			/* PROT FAULT
+                read FAULT_PROT1, FAULT_PROT2 register
+			 */
+		}
+>>>>>>> RTOS
 	}
 }
 

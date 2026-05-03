@@ -303,15 +303,17 @@ void Bridge_AutoAddress(void)
 	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 
 	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
-	readReg(1, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(1, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-	readReg(2, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
-
+	for(uint8_t i = 1; i < TOTALBOARDS; i++)
+	{
+		readReg(i, OTP_ECC_DATAIN1, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN2, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN3, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN4, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN5, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN6, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN7, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+		readReg(i, OTP_ECC_DATAIN8, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+	}
 	return;
 }
 
@@ -680,3 +682,89 @@ void check_cell_balancing(uint8_t boardNum, uint8_t cellsNum){
 void set_VCB_DONE(uint16_t vDone){
 	//????????????
 }
+<<<<<<< HEAD
+=======
+
+// Function to configure GPIO1 as specified input
+uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIO_MODE ,uint8_t BID, uint8_t bWriteType){
+
+	if(BID >= SLAVEBOARDS)
+		return 2;		// Invalid Board ID
+
+	if (GPIO_NUM < 1 || GPIO_NUM > 8)
+	    return 3;   	// Invalid GPIO
+
+	if (GPIO_MODE > 0x07)
+	    return 4;		// Value must fit in 3 bits
+
+	if ((bWriteType != FRMWRT_SGL_W) && (bWriteType != FRMWRT_STK_W) )
+	    return 5;		// Invalid bWriteType
+
+	uint8_t reg_addr = BQ79616_GPIO_CONF1 + ((GPIO_NUM - 1)/2);
+	uint8_t reg_val = (GPIO_MODE << (!(GPIO_NUM % 2) * 3));
+	writeReg((bWriteType == FRMWRT_SGL_W)?BID : 0, reg_addr, reg_val, 1, bWriteType);
+	return 1; 			//Correct Config
+}
+
+uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
+
+	uint8_t ot_ut = 0xE0;  //reset value UT= 80% and OT= 39%
+	uint8_t cb_coolOff= 0x0F; //reset values of OTCB_THR and COOLOFF hysteresis
+	uint8_t dev_stat;
+	uint8_t goCmd = 0x05;
+	uint8_t gpioConf= 0x09; //for simplicity enable all gpio thermistors
+
+	//set UT and OT thresholds
+	writeReg(dev_address, BQ79616_OTUT_THRESH, ot_ut ,1 , FRMWRT_SGL_W);
+	writeReg(dev_address, BQ79616_OTCB_THRESH, cb_coolOff ,1 , FRMWRT_SGL_W);
+
+	//enable TSERF
+	writeReg(dev_address, BQ79616_CONTROL2, 0x01, 1, FRMWRT_SGL_W);
+	vTaskDelay(8); //tTSREF_ON + 1.35ms = 6 + 1.35 = 7.35 ms required delay
+
+	//configure all GPIOs for thermistors
+	/*
+	writeReg(dev_address, BQ79616_GPIO_CONF1, gpioConf, 1, FRMWRT_SGL_W);
+	writeReg(dev_address, BQ79616_GPIO_CONF2, gpioConf, 1, FRMWRT_SGL_W);
+	writeReg(dev_address, BQ79616_GPIO_CONF3, gpioConf, 1, FRMWRT_SGL_W);
+	 */
+
+	writeReg(dev_address, BQ79616_GPIO_CONF1, 0x09, 1, FRMWRT_SGL_W);  // Enable GPIO1 for thermistor
+
+	//set OTUT mode
+	writeReg(dev_address, BQ79616_OTUT_CTRL, OTUT_MODE,1 , FRMWRT_SGL_W);
+
+	//set Vcb_done to Vuv
+
+	//Start Protection
+	writeReg(dev_address, BQ79616_OTUT_CTRL, goCmd ,1 , FRMWRT_SGL_W);
+
+	//read back protection status to ensure its ON
+	readReg(dev_address, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
+	if((dev_stat& 0x10) == 0){
+		return 0;   //error OTUT is not enabled
+	}
+	return 1;
+}
+
+float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
+
+	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
+	int16_t raw_value = 0;
+	uint16_t buffer[2];
+	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
+	{
+
+		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R);
+		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
+
+		//raw_value = (int16_t)((hi << 8) | lo);
+		raw_value =((buffer[1] << 8) | buffer[2]);
+		*raw_value_ptr = raw_value;
+		voltage_uV = ((float)(raw_value)) *VLSB_GPIO;
+	}
+	return voltage_uV;
+}
+
+
+>>>>>>> RTOS
