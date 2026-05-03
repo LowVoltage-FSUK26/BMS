@@ -76,7 +76,7 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 }
 
 
-float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
+uint16_t readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 
 	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
 	int16_t raw_value = 0;
@@ -91,9 +91,8 @@ float readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 
 		raw_value =((buffer[0] << 8) | buffer[1]);
 		*raw_value_ptr = raw_value;
-		voltage_uV = (int16_t)raw_value *VLSB_GPIO/1000000;
 	}
-	return voltage_uV;
+	return raw_value;
 }
 
 
