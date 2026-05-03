@@ -75,7 +75,7 @@ BMS_StatusTypeDef readSlaveVoltage(uint8_t salve_num, uint8_t activeCells, int* 
 	*raw_value = 0;
 	if((salve_num <= SLAVEBOARDS) && (activeCells <= ACTIVE_CELLS))
 	{
-		readBoardVoltages(salve_num, activeCells, raw_value, cellVoltages_board[salve_num]);
+		readBoardVoltages(salve_num, activeCells, raw_value, cellVoltages_board[salve_num-1]);
 	}
 
 	if(raw_value >= 0)
