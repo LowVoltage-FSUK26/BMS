@@ -686,13 +686,12 @@ void BMS_MonitorTask(void const * argument)
 			{
 				buffer.slave_id = i;
 				for(uint8_t j = 1; j <= 4; j++)
-							{
-
-				float temperature_temp = readGPIOVoltage(i, j, &(GpioReadings[i-1][j-1]));
-				buffer.value = (int16_t)(temperature_temp);
-				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
-				vTaskDelay(pdMS_TO_TICKS(5));
-							}
+				{
+					float temperature_temp = readGPIOVoltage(i, j, &(GpioReadings[i-1][j-1]));
+					buffer.value = (int16_t)(temperature_temp);
+					xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+					vTaskDelay(pdMS_TO_TICKS(5));
+				}
 			}
 			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		}
