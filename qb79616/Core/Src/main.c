@@ -282,8 +282,8 @@ int main(void)
 	//==================Define Queues===================//
 
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	bmsMeasurmentsQueue = xQueueCreate(6, sizeof(BMS_Queue_Measurement_t));
-	bmsCanQueue = xQueueCreate(5, sizeof(BMS_CAN_Queue_Message_t));
+	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	bmsCanQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
 
 
 	//==================Define MUTEX===================//
@@ -915,7 +915,7 @@ void BMS_CanTask(void const * argument)
 				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 			}
 
-			vTaskDelay(pdMS_TO_TICKS(50));
+//			vTaskDelay(pdMS_TO_TICKS(50));
 		}
 	}
 

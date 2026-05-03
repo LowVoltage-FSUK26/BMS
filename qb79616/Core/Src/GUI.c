@@ -96,7 +96,7 @@ void Send_GUI_Reading (void)
 	for(uint8_t i=0;i<TOTALBOARDS;i++)
 	{
 		UART_Send_Board_Frame_CharByChar(i);
-//		vTaskDelay(pdMS_TO_TICKS(200));
+		vTaskDelay(pdMS_TO_TICKS(200));
 	}
 
 }
