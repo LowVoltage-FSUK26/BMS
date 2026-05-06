@@ -111,7 +111,10 @@ EventGroupHandle_t BMS_EventGroup;
 
 QueueHandle_t bmsCanQueue;
 QueueHandle_t bmsCmdQueue;
-QueueHandle_t bmsMeasurmentsQueue;
+//QueueHandle_t bmsMeasurmentsQueue;
+QueueHandle_t bmsVoltageQueue;
+QueueHandle_t bmsTempQueue;
+
 
 //----------------
 //RTOS MUTEX
@@ -282,7 +285,9 @@ int main(void)
 	//==================Define Queues===================//
 
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+//	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 2, sizeof(BMS_Queue_Measurement_t));
 	bmsCanQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
 
 
@@ -640,7 +645,7 @@ void BMS_MonitorTask(void const * argument)
 		Send_GUI_Reading();
 		{
 			//buffer = test2();
-			buffer.type = BMS_DATA_VOLTAGE;
+//			buffer.type = BMS_DATA_VOLTAGE;
 
 			//Fetching the Voltage Value of Each Slave
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
@@ -656,8 +661,8 @@ void BMS_MonitorTask(void const * argument)
 
 				buffer.slave_id = i;
 				buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
-				//xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
-				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+				xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+//				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 
 				//if( (i % CAN_DATA_PER_FRAME) == 0)
 				xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
@@ -666,8 +671,8 @@ void BMS_MonitorTask(void const * argument)
 			//calculating Battery voltage
 			buffer.slave_id = BATTERYVOLT_ID;
 			buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_battary_voltage);
-			//xQueueSendToBack(bmsVoltageQueue, &buffer.value, (TickType_t)10);
-			xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+			xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+//			xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		}
 		xSemaphoreGive(UART_MUTEX);
@@ -677,7 +682,7 @@ void BMS_MonitorTask(void const * argument)
 
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		{
-			buffer.type = BMS_DATA_TEMPERATURE;
+//			buffer.type = BMS_DATA_TEMPERATURE;
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 			{
 				buffer.slave_id = i;
@@ -685,14 +690,14 @@ void BMS_MonitorTask(void const * argument)
 				{
 					uint16_t temperature_temp = readGPIOVoltage(i, j, &(GpioReadings[i-1][j-1]));
 					buffer.value = BMS_data_convert(BMS_DATA_TEMPERATURE, temperature_temp);
-					xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+					xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
 					vTaskDelay(pdMS_TO_TICKS(5));
+					xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 				}
 			}
-			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		}
 
-		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
+//		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		xSemaphoreGive(UART_MUTEX);
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
@@ -755,38 +760,30 @@ void BMS_CellVoltageTask(void const * argument)
 	{
 
 
-		if(xQueueReceive(bmsMeasurmentsQueue, &volt_buffer, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsVoltageQueue, &volt_buffer, (TickType_t)10) == pdTRUE)
 		{
 
-			if(volt_buffer.type == BMS_DATA_VOLTAGE)
+//
+			if(volt_buffer.slave_id == BATTERYVOLT_ID)
 			{
-
-				if(volt_buffer.slave_id == BATTERYVOLT_ID)
-				{
-					battery_volt = ((float)(volt_buffer.value) / 100);
-
-					HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
-					char numBuf[12];
-					itoa((uint32_t)battery_volt, numBuf, 10);
-					HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
-					HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
-				}
-
-				can_buffer.Data.frame.slave[(volt_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = volt_buffer.value;
-
-				if(((volt_buffer.slave_id % CAN_DATA_PER_FRAME) == 0))
-				{
-					can_buffer.first_slave_id = volt_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-					xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
-					memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-				}
-
+				battery_volt = ((float)(volt_buffer.value) / 100);
+//
+//				HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
+//				char numBuf[12];
+//				itoa((uint32_t)battery_volt, numBuf, 10);
+//				HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
+//				HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
 			}
-			else
+
+			can_buffer.Data.frame.slave[(volt_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = volt_buffer.value;
+
+			if(((volt_buffer.slave_id % CAN_DATA_PER_FRAME) == 0))
 			{
-				xQueueSendToBack(bmsMeasurmentsQueue, &volt_buffer, (TickType_t)10);
-				continue;
+				can_buffer.first_slave_id = volt_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
+				xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+				memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
 			}
+
 		}
 		else
 		{
@@ -826,18 +823,15 @@ void BMS_ReadTempTask(void const * argument)
 		//wait for MSG to arrive
 		xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 
-		if(xQueueReceive(bmsMeasurmentsQueue, &temperature_buffer, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsTempQueue, &temperature_buffer, (TickType_t)10) == pdTRUE)
 		{
-			if(temperature_buffer.type == BMS_DATA_TEMPERATURE)
-			{
-
 
 				if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) &&  (temperature_buffer.slave_id != prev_first_ID))
 				{
 					if(prev_first_ID != 0)
 					{
 						can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-						xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+						xQueueSendToBack(bmsTempQueue, &can_buffer, (TickType_t)10);
 						memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
 					}
 					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
@@ -850,7 +844,7 @@ void BMS_ReadTempTask(void const * argument)
 				else if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) && (temperature_buffer.slave_id == prev_first_ID))
 				{
 					can_buffer.first_slave_id = prev_first_ID;
-					xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+					xQueueSendToBack(bmsTempQueue, &can_buffer, (TickType_t)10);
 					memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
 					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
 					prev_first_ID = temperature_buffer.slave_id;
@@ -866,12 +860,6 @@ void BMS_ReadTempTask(void const * argument)
 //					}
 //
 
-			}
-			else
-			{
-				xQueueSendToBack(bmsMeasurmentsQueue, &temperature_buffer, (TickType_t)10);
-				continue;
-			}
 		}
 		else
 		{
