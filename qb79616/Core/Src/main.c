@@ -145,7 +145,8 @@ CAN_TxHeaderTypeDef BMS_CAN_TxHandler;
 CAN_RxHeaderTypeDef BMS_CAN_RxHandler;
 uint32_t TxMailbox;
 uint8_t BMS_CAN_TxData[8];
-uint8_t BMS_CAN_RxData[8];
+BMS_CAN_Frame_t BMS_CAN_RxData;
+
 
 
 /* USER CODE END PV */
@@ -191,8 +192,17 @@ void BMS_CanTask(void const * argument);
 /* USER CODE BEGIN 0 */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData) != HAL_OK)
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) != HAL_OK)
 	{
+//		char buffer[100];
+//		snprintf(buffer, sizeof(buffer),
+//		        "slave[1] = %d v slave[2] = %d v slave[3] = %d slave[4] = %d v\r\n",
+//		        (BMS_CAN_RxData.frame.slave[0] / 100),
+//				(BMS_CAN_RxData.frame.slave[1] / 100),
+//				(BMS_CAN_RxData.frame.slave[2] / 100),
+//				(BMS_CAN_RxData.frame.slave[3] / 100));
+//
+//		    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
 		return; // Error
 	}
 
@@ -215,23 +225,6 @@ int16_t BMS_data_convert(BMS_DataType_t type, int data)
 	return data;
 }
 
-//void UART_PrintFrame(BMS_CAN_Queue_Message_t *frame)
-//{
-//    char buffer[100];
-//
-//    snprintf(buffer, sizeof(buffer),
-//        "slave[%d] = %d v slave[%d] = %d v slave[%d] = %d slave[%d] = %d v\r\n",
-//		frame->first_slave_id,
-//        frame->Data.frame.slave[0],
-//		frame->first_slave_id + 1,
-//		frame->Data.frame.slave[1],
-//		frame->first_slave_id + 2,
-//		frame->Data.frame.slave[2],
-//		frame->first_slave_id + 3,
-//		frame->Data.frame.slave[3]);
-//
-//    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-//}
 
 /* USER CODE END 0 */
 
@@ -844,7 +837,7 @@ void BMS_ReadTempTask(void const * argument)
 				else if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) && (temperature_buffer.slave_id == prev_first_ID))
 				{
 					can_buffer.first_slave_id = prev_first_ID;
-					xQueueSendToBack(bmsTempQueue, &can_buffer, (TickType_t)10);
+					xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
 					memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
 					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
 					prev_first_ID = temperature_buffer.slave_id;
