@@ -279,8 +279,8 @@ int main(void)
 
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 //	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
-	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
-	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 2, sizeof(BMS_Queue_Measurement_t));
+	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 3, sizeof(BMS_Queue_Measurement_t));
+	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
 	bmsCanQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
 
 
@@ -679,14 +679,18 @@ void BMS_MonitorTask(void const * argument)
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 			{
 				buffer.slave_id = i;
-				for(uint8_t j = 1; j <= 4; j++)
+				uint32_t temperautre_sum = 0;
+				uint8_t j;
+				for(j = 1; j <= 4; j++)
 				{
 					uint16_t temperature_temp = readGPIOVoltage(i, j, &(GpioReadings[i-1][j-1]));
-					buffer.value = BMS_data_convert(BMS_DATA_TEMPERATURE, temperature_temp);
-					xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-					vTaskDelay(pdMS_TO_TICKS(5));
-					xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
+					temperautre_sum += temperature_temp;
+
 				}
+				buffer.value = BMS_data_convert(BMS_DATA_TEMPERATURE, temperautre_sum/j);
+				xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+				vTaskDelay(pdMS_TO_TICKS(5));
+				xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 			}
 		}
 
@@ -824,7 +828,7 @@ void BMS_ReadTempTask(void const * argument)
 					if(prev_first_ID != 0)
 					{
 						can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-						xQueueSendToBack(bmsTempQueue, &can_buffer, (TickType_t)10);
+						xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
 						memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
 					}
 					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
