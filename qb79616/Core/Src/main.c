@@ -81,20 +81,13 @@ extern uint8_t bridge_faultCOMM2;
 
 TaskHandle_t BmsInitTaskHandle;
 TaskHandle_t BmsCanTaskHandle;
-
-#ifdef SIMPLETASK
-
-TaskHandle_t BMS_DiagnosticHandle;
-
-#elif defined(EVENT_GROUP)
-
 TaskHandle_t BmsMonitorTaskHandle;
 TaskHandle_t BmsCommandTaskHandle;
 TaskHandle_t BmsCellVoltageTaskHandle;
 TaskHandle_t BmsReadTempTaskHandle;
 TaskHandle_t BmsFaultTaskHandle;
+TaskHandle_t BmsGUITaskHandle;
 
-#endif
 
 //----------------
 //RTOS EVENTGroup Bits
@@ -164,11 +157,6 @@ static void MX_CAN_Init(void);
 
 void BMS_Init(void const * argument);
 
-#ifdef SIMPLETASK
-
-void BMS_Diagnostic(void const * argument);
-
-#elif defined(EVENT_GROUP)
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument);
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -181,9 +169,11 @@ void BMS_ReadTempTask(void const * argument);
 //Activated by an Event group to trigger shutdown circuit and Handle fault
 void BMS_FaultTask(void const * argument);
 
-#endif
 
 void BMS_CanTask(void const * argument);
+
+void BMS_GUI_Task(void const * argument);
+
 
 
 /* USER CODE END PFP */
@@ -268,22 +258,21 @@ int main(void)
 
 
 	//==================Define MUTEX===================//
-#ifdef EVENT_GROUP
 	UART_MUTEX = xSemaphoreCreateMutex();
-#endif
+
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
-#ifdef SIMPLETASK
-	xTaskCreate((TaskFunction_t) BMS_Diagnostic, "BMS_Diagnostic", 128, NULL,(UBaseType_t) 3, &BMS_DiagnosticHandle);
-#elif defined(EVENT_GROUP)
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
+
+#ifdef GUI
+	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
 #endif
 
 
@@ -562,44 +551,29 @@ void BMS_Init(void const * argument)
 		}
 	}
 
-#ifdef SIMPLETASK
-
-	xTaskNotify(BMS_DiagnosticHandle, NOTIFY_BMS_INIT_DONE, eSetBits);
-
-#elif defined(EVENT_GROUP)
 	xEventGroupSetBits(BMS_EventGroup, BMS_INIT_DONE_BIT);
-#endif
+
 	vTaskDelete(NULL);
 
 }
 
-void BMS_Diagnostic(void const * argument)
+
+#ifdef GUI
+void BMS_GUI_Task(void const * argument)
 {
-	xTaskNotifyWait(0, NOTIFY_BMS_INIT_DONE, NULL, portMAX_DELAY);
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
 	{
-		battery_volt = readBattaryVoltage();
+		Send_GUI_Reading();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		vTaskDelay(100);
+		vTaskDelay(50);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		vTaskDelay(100);
-
-		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
-		{
-			for(uint8_t j = 1; j <= 4; j++)
-			{
-				readGPIOVoltage(i, j, &(GpioReadings[i - 1][j - 1]));
-				vTaskDelay(50);
-			}
-
-		}
 		vTaskDelay(50);
 	}
-
-
 }
 
+#endif
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument)
 {
@@ -618,7 +592,7 @@ void BMS_MonitorTask(void const * argument)
 		//Send_GUI_Reading();
 		{
 			//buffer = test2();
-//			buffer.type = BMS_DATA_VOLTAGE;
+			//buffer.type = BMS_DATA_VOLTAGE;
 
 			//Fetching the Voltage Value of Each Slave
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
@@ -636,8 +610,6 @@ void BMS_MonitorTask(void const * argument)
 				buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
 				xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 //				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
-
-				//if( (i % CAN_DATA_PER_FRAME) == 0)
 				xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 			}
 
@@ -674,13 +646,8 @@ void BMS_MonitorTask(void const * argument)
 			}
 		}
 
-//		xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		xSemaphoreGive(UART_MUTEX);
 
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		vTaskDelay(100);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		vTaskDelay(100);
 	}
 }
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -740,16 +707,9 @@ void BMS_CellVoltageTask(void const * argument)
 		if(xQueueReceive(bmsVoltageQueue, &volt_buffer, (TickType_t)10) == pdTRUE)
 		{
 
-//
 			if(volt_buffer.slave_id == BATTERYVOLT_ID)
 			{
 				battery_volt = ((float)(volt_buffer.value) / 100);
-//
-//				HAL_UART_Transmit(&huart2, (uint8_t*)"Received Voltage: ", 18, HAL_MAX_DELAY);
-//				char numBuf[12];
-//				itoa((uint32_t)battery_volt, numBuf, 10);
-//				HAL_UART_Transmit(&huart2, (uint8_t*)numBuf, strlen(numBuf), HAL_MAX_DELAY);
-//				HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, HAL_MAX_DELAY);
 			}
 
 			can_buffer.Data.frame.slave[(volt_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = volt_buffer.value;
@@ -764,9 +724,6 @@ void BMS_CellVoltageTask(void const * argument)
 		}
 		else
 		{
-			//indicate message is not received
-			//HAL_UART_Transmit(&huart2, (uint8_t*)"not Received", 12, HAL_MAX_DELAY);
-			//wait for MSG to arrive
 			//todo Optimize wait delay to be dynamic to the number of slaves
 			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
 		}
@@ -826,16 +783,6 @@ void BMS_ReadTempTask(void const * argument)
 					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
 					prev_first_ID = temperature_buffer.slave_id;
 				}
-
-//					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
-//
-//					if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME) == 0)
-//					{
-//						can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-//						xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
-//						memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-//					}
-//
 
 		}
 		else

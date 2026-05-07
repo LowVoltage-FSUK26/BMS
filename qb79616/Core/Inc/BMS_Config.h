@@ -33,6 +33,7 @@
 #define BATTERYVOLT_ID		(TOTALBOARDS + (4 - (TOTALBOARDS % 4)))
 
 #define VOLT_CONV		0.00019073
+#define GUI
 
 
 //---------------
