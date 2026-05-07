@@ -190,23 +190,6 @@ void BMS_CanTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) != HAL_OK)
-	{
-//		char buffer[100];
-//		snprintf(buffer, sizeof(buffer),
-//		        "slave[1] = %d v slave[2] = %d v slave[3] = %d slave[4] = %d v\r\n",
-//		        (BMS_CAN_RxData.frame.slave[0] / 100),
-//				(BMS_CAN_RxData.frame.slave[1] / 100),
-//				(BMS_CAN_RxData.frame.slave[2] / 100),
-//				(BMS_CAN_RxData.frame.slave[3] / 100));
-//
-//		    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-		return; // Error
-	}
-
-}
 
 //function that converts the data according to the type
 //Funtion outputs the value x100 to take only 2 numbers after the decimal point
@@ -570,17 +553,14 @@ void BMS_Init(void const * argument)
 	vTaskDelay(10);
 
 	uint8_t dev_stat;
-	readReg(1, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
-	if((dev_stat& 0x01) == 0){
-		//error
-		while(1);
+	for(uint8_t i = 1; i < TOTALBOARDS; i++)
+	{
+		readReg(i, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
+		if((dev_stat& 0x01) == 0){
+			//error
+			while(1);
+		}
 	}
-	readReg(2, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
-	if((dev_stat& 0x01) == 0){
-		//error
-		while(1);
-	}
-
 
 #ifdef SIMPLETASK
 
@@ -943,6 +923,37 @@ void BMS_FaultTask(void const * argument)
 		//read fault_summary variable and handle it
 		vTaskDelay(pdMS_TO_TICKS(500));
 	}
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) != HAL_OK)
+	{
+//		char buffer[100];
+//		if(BMS_CAN_RxHandler.StdId >= 0x200)
+//		{
+//			snprintf(buffer, sizeof(buffer),
+//					"s1 = %d C s2 = %d C s3 = %d C s4 = %d C\r\n",
+//					(BMS_CAN_RxData.frame.slave[0] / 100),
+//					(BMS_CAN_RxData.frame.slave[1] / 100),
+//					(BMS_CAN_RxData.frame.slave[2] / 100),
+//					(BMS_CAN_RxData.frame.slave[3] / 100));
+//		}
+//		else
+//		{
+//			snprintf(buffer, sizeof(buffer),
+//				"s1 = %d v s2 = %d v s3 = %d s4 = %d v\r\n",
+//				(BMS_CAN_RxData.frame.slave[0] / 100),
+//				(BMS_CAN_RxData.frame.slave[1] / 100),
+//				(BMS_CAN_RxData.frame.slave[2] / 100),
+//				(BMS_CAN_RxData.frame.slave[3] / 100));
+//		}
+//
+//
+//		    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+		return; // Error
+	}
+
 }
 
 

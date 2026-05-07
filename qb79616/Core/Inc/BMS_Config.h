@@ -109,7 +109,6 @@ typedef enum
 
 typedef struct
 {
-    BMS_DataType_t type;
     uint8_t slave_id;
     int16_t value;
 
