@@ -564,6 +564,7 @@ void BMS_GUI_Task(void const * argument)
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
 	{
+
 		Send_GUI_Reading();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
