@@ -78,18 +78,22 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 
 uint16_t readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 
-	float voltage_uV = 989; //Special value indicating invalid GPIO_NUM
+
 	int16_t raw_value = 0;
-	uint16_t buffer[2];
+	uint8_t stat = 0;
+	uint32_t timeout = 100;
+	while(timeout--) {
+	    readReg(BID, ADC_STAT1, &stat, 1, 0, FRMWRT_SGL_R);
+	    if(stat & 0x01) break;  // Bit3 = DRDY_MAIN_ADC
+	    vTaskDelay(1);
+	}
 	if((GPIO_NUM >= 1) && (GPIO_NUM <= 8))
 	{
 
-		readReg(BID, (GPIO1_HI + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[0]), 1, 0, FRMWRT_SGL_R);
-		readReg(BID, (GPIO1_LO + 2*(GPIO_NUM - 1)), (uint8_t*)(&buffer[1]), 1, 0, FRMWRT_SGL_R);
+		uint8_t raw[2];
+		readReg(BID, GPIO1_HI + 2*(GPIO_NUM-1), raw, 2, 0, FRMWRT_SGL_R);
+		raw_value = (int16_t)((raw[0] << 8) | raw[1]);
 
-		//raw_value = (int16_t)((hi << 8) | lo);
-
-		raw_value =((buffer[0] << 8) | buffer[1]);
 		*raw_value_ptr = raw_value;
 	}
 	return raw_value;

@@ -93,6 +93,14 @@ uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, uint1
 
 	uint8_t full_cell_voltage[2];
 
+	uint8_t stat = 0;
+	uint32_t timeout = 100;
+	while(timeout--) {
+	    readReg(boardNum, ADC_STAT1, &stat, 1, 0, FRMWRT_SGL_R);
+	    if(stat & 0x01) break;  // DRDY_MAIN_ADC
+	    vTaskDelay(1);
+	}
+
 	for (uint8_t cell = 1; cell <= numCells; cell++) {
 		uint16_t hiRegAddr = BQ79616_CELL_VOLTAGE_BASE + ((16 - cell) * 2);
 		uint16_t loRegAddr = hiRegAddr + 1;

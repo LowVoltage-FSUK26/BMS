@@ -53,7 +53,7 @@ void UART_Send_Board_Frame_CharByChar(uint8_t board_num)
 	}
 	else {
 		// ----- Cells -----
-
+		cellVoltages_board[0][15]=0;
 		for(int i=0;i<16;i++)
 		{
 			uint16_to_hex4(temp, cellVoltages_board[board_num-1][i]); // 4-digit hex
@@ -93,10 +93,11 @@ void UART_Send_Board_Frame_CharByChar(uint8_t board_num)
 
 void Send_GUI_Reading (void)
 {
+
 	for(uint8_t i=0;i<TOTALBOARDS;i++)
 	{
 		UART_Send_Board_Frame_CharByChar(i);
-		vTaskDelay(pdMS_TO_TICKS(200));
+		vTaskDelay(pdMS_TO_TICKS(1000));
 	}
 
 }
