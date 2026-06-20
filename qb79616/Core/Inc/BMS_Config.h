@@ -55,8 +55,8 @@
 #define CAN_TEMP_ID				0x200
 #define CAN_BMS_TO_CH			0x1806E5F4
 #define CAN_CH_TO_BMS			0x18FF50E5
-#define CAN_BMS_TO_CH_STD		(CAN_BMS_TO_CH && 0x1FFC0000)
-#define CAN_BMS_TO_CH_ExID		(CAN_BMS_TO_CH && 0x0003FFFF)
+#define CAN_BMS_TO_CH_STD		((CAN_BMS_TO_CH & 0x1FFC0000) >> 18)
+#define CAN_BMS_TO_CH_ExID		(CAN_BMS_TO_CH & 0x0003FFFF)
 
 /* ------------------------------------
      CAN Charger MACROS
