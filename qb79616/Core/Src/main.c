@@ -86,6 +86,7 @@ TaskHandle_t BmsCommandTaskHandle;
 TaskHandle_t BmsCellVoltageTaskHandle;
 TaskHandle_t BmsReadTempTaskHandle;
 TaskHandle_t BmsFaultTaskHandle;
+TaskHandle_t BmsBalancingTaskHandle;
 TaskHandle_t BmsGUITaskHandle;
 
 
@@ -169,6 +170,7 @@ void BMS_ReadTempTask(void const * argument);
 //Activated by an Event group to trigger shutdown circuit and Handle fault
 void BMS_FaultTask(void const * argument);
 
+void BMS_BalancingTask(void const * argument);
 
 void BMS_CanTask(void const * argument);
 
@@ -270,7 +272,7 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-
+	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 80, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
 #endif
@@ -568,9 +570,9 @@ void BMS_GUI_Task(void const * argument)
 		Send_GUI_Reading();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		vTaskDelay(50);
+		vTaskDelay(500);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		vTaskDelay(50);
+		vTaskDelay(500);
 	}
 }
 
@@ -871,6 +873,17 @@ void BMS_FaultTask(void const * argument)
 		//read fault_summary variable and handle it
 		vTaskDelay(pdMS_TO_TICKS(500));
 	}
+}
+
+
+void BMS_BalancingTask(void const * argument)
+{
+	while(1)
+	{
+
+
+	}
+
 }
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
