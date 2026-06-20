@@ -136,6 +136,8 @@ extern EventGroupHandle_t uartEventGroup;
 //-----------------------
 CAN_TxHeaderTypeDef BMS_CAN_TxHandler;
 CAN_RxHeaderTypeDef BMS_CAN_RxHandler;
+
+CAN_TxHeaderTypeDef BMS_CAN_TxHandler_Ext;
 uint32_t TxMailbox;
 uint8_t BMS_CAN_TxData[8];
 BMS_CAN_Frame_t BMS_CAN_RxData;
@@ -270,7 +272,7 @@ int main(void)
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
@@ -354,7 +356,7 @@ static void MX_CAN_Init(void)
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
   hcan.Init.Prescaler = 18;
-  hcan.Init.Mode = CAN_MODE_LOOPBACK;
+  hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
   hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
@@ -570,12 +572,12 @@ void BMS_GUI_Task(void const * argument)
 	for(;;)
 	{
 
-		Send_GUI_Reading();
+		//Send_GUI_Reading();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-		vTaskDelay(50);
+		vTaskDelay(500);
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-		vTaskDelay(50);
+		vTaskDelay(500);
 	}
 }
 
@@ -817,19 +819,14 @@ void BMS_CanTask(void const * argument)
 	{
 		if(charger_fault == 1)
 		{
-			BMS_CAN_TxHandler.StdId = CAN_BMS_TO_CH_STD;
-			BMS_CAN_TxHandler.ExtId = CAN_BMS_TO_CH_ExID;
 			CHARGER_CAN_Frame_t can_charger_buf = {0};
-//			CHARGER_CAN_Frame_t can_charger_buf = {	.frame = {
-//														.max_char_VOTL = 0,
-//														.max_char_AMP = 0,
-//														.control = 0},
-//													.bytes[5] = 0,
-//													.bytes[6] = 0,
-//													.bytes[7] = 0,
-//													};
+			BMS_CAN_TxHandler_Ext.StdId = 0;
+			BMS_CAN_TxHandler_Ext.ExtId = CAN_BMS_TO_CH;
+			BMS_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
+			BMS_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
+			BMS_CAN_TxHandler.DLC = CAN_MSG_SIZE;
 
-			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, (uint8_t*)&(can_charger_buf), &TxMailbox) != HAL_OK)
+			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler_Ext, (uint8_t*)&(can_charger_buf), &TxMailbox) != HAL_OK)
 				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);	//error
 
 			charger_fault = 0;
@@ -901,13 +898,13 @@ void BMS_FaultTask(void const * argument)
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) != HAL_OK)
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) == HAL_OK)
 	{
 
-		if((BMS_CAN_RxHandler.StdId | BMS_CAN_RxHandler.ExtId) == CAN_CH_TO_BMS)
+		if(BMS_CAN_RxHandler.ExtId == CAN_CH_TO_BMS)
 		{
 			if((BMS_CAN_RxData.bytes[4] & (1<<3)) != 1) //charger is ON
-				if((BMS_CAN_RxData.bytes[4] & 0b111) == 1) //Fault Occurred
+				if((BMS_CAN_RxData.bytes[4] & 0b111) > 0) //Fault Occurred
 					charger_fault = 1; //Set global viarbale to turn OFF charger
 		}
 //		char buffer[100];
