@@ -53,6 +53,18 @@
 #define CAN_DATA_PER_FRAME		(CAN_MSG_SIZE/CAN_DATA_SIZE)
 #define CAN_VOLT_ID				0x100
 #define CAN_TEMP_ID				0x200
+#define CAN_BMS_TO_CH			0x1806E5F4
+#define CAN_CH_TO_BMS			0x18FF50E5
+#define CAN_BMS_TO_CH_STD		(CAN_BMS_TO_CH && 0x1FFC0000)
+#define CAN_BMS_TO_CH_ExID		(CAN_BMS_TO_CH && 0x0003FFFF)
+
+/* ------------------------------------
+     CAN Charger MACROS
+   ------------------------------------
+*/
+#define  MAX_CHAR_VOLT			6500		//0.1V/byte  offset:0  e.g. Vset=3201, its corresponding 320.1V
+#define  MAX_CHAR_AMP			100		//0.1A/byte  offset:0  e.g. Iset=582, its corresponding 58.2A
+
 
 /* ------------------------------------
      BMS Frame Structs
@@ -77,6 +89,22 @@ typedef union
 	} frame;
 
 } BMS_CAN_Frame_t;
+
+
+typedef union
+{
+	uint8_t bytes[8];
+
+	struct {
+
+		uint16_t max_char_VOTL;
+		uint16_t max_char_AMP;
+		uint8_t  control;
+
+	} frame;
+
+} CHARGER_CAN_Frame_t;
+
 
 //---------------------
 //RTOS Design MODE
