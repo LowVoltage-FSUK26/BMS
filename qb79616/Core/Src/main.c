@@ -140,6 +140,11 @@ uint32_t TxMailbox;
 uint8_t BMS_CAN_TxData[8];
 BMS_CAN_Frame_t BMS_CAN_RxData;
 
+//------------------------
+//    CHARGER Variables
+//-----------------------
+uint8_t charger_fault = 0;
+
 
 
 /* USER CODE END PV */
@@ -810,7 +815,28 @@ void BMS_CanTask(void const * argument)
 
 	for(;;)
 	{
-		if(xQueueReceive(bmsCanQueue, &CAN_Queue_Buffer, (TickType_t)10) == pdTRUE)
+		if(charger_fault == 1)
+		{
+			BMS_CAN_TxHandler.StdId = CAN_BMS_TO_CH_STD;
+			BMS_CAN_TxHandler.ExtId = CAN_BMS_TO_CH_ExID;
+			CHARGER_CAN_Frame_t can_charger_buf = {0};
+//			CHARGER_CAN_Frame_t can_charger_buf = {	.frame = {
+//														.max_char_VOTL = 0,
+//														.max_char_AMP = 0,
+//														.control = 0},
+//													.bytes[5] = 0,
+//													.bytes[6] = 0,
+//													.bytes[7] = 0,
+//													};
+
+			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, (uint8_t*)&(can_charger_buf), &TxMailbox) != HAL_OK)
+				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);	//error
+
+			charger_fault = 0;
+
+
+		}
+		else if(xQueueReceive(bmsCanQueue, &CAN_Queue_Buffer, (TickType_t)10) == pdTRUE)
 		{
 			//todo SET proper IDS
 			if(CAN_Queue_Buffer.type == BMS_DATA_VOLTAGE)
@@ -877,6 +903,13 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
 	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) != HAL_OK)
 	{
+
+		if((BMS_CAN_RxHandler.StdId | BMS_CAN_RxHandler.ExtId) == CAN_CH_TO_BMS)
+		{
+			if((BMS_CAN_RxData.bytes[4] & (1<<3)) != 1) //charger is ON
+				if((BMS_CAN_RxData.bytes[4] & 0b111) == 1) //Fault Occurred
+					charger_fault = 1; //Set global viarbale to turn OFF charger
+		}
 //		char buffer[100];
 //		if(BMS_CAN_RxHandler.StdId >= 0x200)
 //		{
