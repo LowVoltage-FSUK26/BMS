@@ -52,7 +52,7 @@ void balancing_init(void) {
 
 		// 1. Set balancing timer for all cells (30 min)
 		for (uint8_t c = 0; c < NUM_CELLS; c++) {
-			writeReg(s, BQ79616_CB_CELL_CTRL_16 +(NUM_CELLS - 1 - c), 0x09, 1, FRMWRT_SGL_W);
+			writeReg(s, BQ79616_CB_CELL_CTRL_01  - c, 0x09, 1, FRMWRT_SGL_W);
 		}
 
 		// 2. Enable OTCB thermal protection
@@ -102,12 +102,7 @@ void balancing_update(void) {
 	// 7. Update each slave only if threshold changed
 	for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
 
-		if (new_CB_THR == last_CB_THR[s-1]){
-
-		}
-		else //continue, no change, skip
-		{ //continue // no change, skip
-
+		if (new_CB_THR != last_CB_THR[s-1]){//continue // no change, skip
 			// Write new threshold
 			writeReg(s, BQ79616_VCB_DONE_THRESH, new_CB_THR, 1, FRMWRT_SGL_W);
 
@@ -118,9 +113,9 @@ void balancing_update(void) {
 		// Rewrite timers with remaining values
 		for (uint8_t c = 0; c < NUM_CELLS; c++) {
 			uint8_t timer = ((cellVoltages_board[s-1][c] - vmin) > BALANCE_DELTA_LSB)
-                            		? 0x09
-                            				: 0x00;
-			writeReg(s, BQ79616_CB_CELL_CTRL_16 + (NUM_CELLS - 1 - c),
+                            				? 0x09
+                            						: 0x00;
+			writeReg(s, BQ79616_CB_CELL_CTRL_01- c,
 					timer, 1, FRMWRT_SGL_W);
 		}
 
