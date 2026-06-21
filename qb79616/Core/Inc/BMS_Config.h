@@ -62,8 +62,18 @@
      CAN Charger MACROS
    ------------------------------------
 */
-#define  MAX_CHAR_VOLT			6500		//0.1V/byte  offset:0  e.g. Vset=3201, its corresponding 320.1V
-#define  MAX_CHAR_AMP			100		//0.1A/byte  offset:0  e.g. Iset=582, its corresponding 58.2A
+#define CHAR_MAX_VOLT			6500		//0.1V/byte  offset:0  e.g. Vset=3201, its corresponding 320.1V
+#define CHAR_MAX_VOLT_High		((CHAR_MAX_VOLT & 0xFF00) >> 8)
+#define CHAR_MAX_VOLT_low		(CHAR_MAX_VOLT & 0x00FF)
+
+
+#define CHAR_MAX_AMP			100		//0.1A/byte  offset:0  e.g. Iset=582, its corresponding 58.2A
+#define CHAR_MAX_AMP_High		((CHAR_MAX_AMP & 0xFF00) >> 8)
+#define CHAR_MAX_AMP_low		(CHAR_MAX_AMP & 0x00FF)
+
+//Control
+#define CHAR_START				0
+#define CHAR_STOP				1
 
 
 /* ------------------------------------
@@ -121,6 +131,7 @@ typedef union
 #define NOTIFY_BMS_GOT_VOLT         (1U << 2)
 #define NOTIFY_BMS_GOT_TEMP         (1U << 3)
 #define NOTIFY_BMS_GOT_FS           (1U << 4)
+#define NOTIFY_BMS_CHARGER_ON       (1U << 5)
 
 
 
@@ -132,7 +143,8 @@ typedef union
 typedef enum
 {
     BMS_DATA_VOLTAGE = 0,
-    BMS_DATA_TEMPERATURE = 1
+    BMS_DATA_TEMPERATURE = 1,
+	BMS_CHARGER = 2
 
 } BMS_DataType_t;
 
