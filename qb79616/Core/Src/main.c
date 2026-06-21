@@ -284,7 +284,7 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-	//	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 6, &BmsChargerTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 6, &BmsChargerTaskHandle);
 
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
@@ -861,20 +861,18 @@ void BMS_CanTX_Task(void const * argument)
 
 void BMS_ChargerTask(void const * argument)
 {
-	BMS_CAN_Queue_Message_t can_buffer = { .first_slave_id = 0,		//not used
-											.type = BMS_CHARGER,
-											.Data = {CHAR_MAX_VOLT_High,
-													CHAR_MAX_VOLT_low,
-													CHAR_MAX_AMP_High,
-													CHAR_MAX_AMP_low,
-													CHAR_START,
-													0,
-													0,
-													0}};
+	BMS_CAN_Queue_Message_t can_buffer;
+	uint8_t charger_fault = 0;
 
 	for(;;)
 	{
 		memset(&can_buffer, 0, sizeof(can_buffer));
+		can_buffer.type = BMS_CHARGER;
+		can_buffer.Data.bytes[0] = CHAR_MAX_VOLT_High;
+		can_buffer.Data.bytes[1] = CHAR_MAX_VOLT_low;
+		can_buffer.Data.bytes[2] = CHAR_MAX_AMP_High;
+		can_buffer.Data.bytes[3] = CHAR_MAX_AMP_low;
+		can_buffer.Data.bytes[4] = CHAR_START;
 		if(xQueueReceive(bmsCanRXQueue, &can_buffer, pdMS_TO_TICKS(800)))
 		{
 			if(BMS_CAN_RxHandler.ExtId == CAN_CH_TO_BMS)
@@ -883,10 +881,15 @@ void BMS_ChargerTask(void const * argument)
 				{
 					if((BMS_CAN_RxData.bytes[4] & 0b111) != 0) //Fault Occurred
 					{
-						can_buffer.Data.bytes[4] = CHAR_STOP;
+						charger_fault = 1;
 					}
 				}
 			}
+		}
+
+		if(charger_fault == 1)
+		{
+			can_buffer.Data.bytes[4] = CHAR_STOP;
 		}
 		else
 		{
