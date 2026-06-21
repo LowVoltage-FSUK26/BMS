@@ -820,11 +820,12 @@ void BMS_CanTask(void const * argument)
 		if(charger_fault == 1)
 		{
 			CHARGER_CAN_Frame_t can_charger_buf = {0};
+			can_charger_buf.bytes[4] = 1;
 			BMS_CAN_TxHandler_Ext.StdId = 0;
 			BMS_CAN_TxHandler_Ext.ExtId = CAN_BMS_TO_CH;
-			BMS_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
-			BMS_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
-			BMS_CAN_TxHandler.DLC = CAN_MSG_SIZE;
+			BMS_CAN_TxHandler_Ext.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
+			BMS_CAN_TxHandler_Ext.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
+			BMS_CAN_TxHandler_Ext.DLC = CAN_MSG_SIZE;
 
 			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler_Ext, (uint8_t*)&(can_charger_buf), &TxMailbox) != HAL_OK)
 				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);	//error
@@ -835,7 +836,7 @@ void BMS_CanTask(void const * argument)
 		}
 		else if(xQueueReceive(bmsCanQueue, &CAN_Queue_Buffer, (TickType_t)10) == pdTRUE)
 		{
-			//todo SET proper IDS
+
 			if(CAN_Queue_Buffer.type == BMS_DATA_VOLTAGE)
 			{
 				BMS_CAN_TxHandler.StdId = CAN_VOLT_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
