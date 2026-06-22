@@ -35,6 +35,7 @@
 #include "Faults.h"
 #include "Voltages.h"
 #include "Temperatures.h"
+#include "Balancing.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,6 +87,7 @@ TaskHandle_t BmsCommandTaskHandle;
 TaskHandle_t BmsCellVoltageTaskHandle;
 TaskHandle_t BmsReadTempTaskHandle;
 TaskHandle_t BmsFaultTaskHandle;
+TaskHandle_t BmsBalancingTaskHandle;
 TaskHandle_t BmsGUITaskHandle;
 TaskHandle_t BmsChargerTaskHandle;
 
@@ -179,6 +181,7 @@ void BMS_ReadTempTask(void const * argument);
 //Activated by an Event group to trigger shutdown circuit and Handle fault
 void BMS_FaultTask(void const * argument);
 
+void BMS_BalancingTask(void const * argument);
 
 void BMS_CanTX_Task(void const * argument);
 
@@ -285,6 +288,7 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 3, &BmsChargerTaskHandle);
 
+	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
 #endif
@@ -546,7 +550,7 @@ void BMS_Init(void const * argument)
 
 	Bridge_FaultInit();
 	Stack_FaultInit();
-
+	balancing_init();
 	vTaskDelay(10);
 
 	//=============================
@@ -941,6 +945,18 @@ void BMS_FaultTask(void const * argument)
 		//read fault_summary variable and handle it
 		vTaskDelay(pdMS_TO_TICKS(500));
 	}
+}
+
+
+void BMS_BalancingTask(void const * argument)
+{
+	vTaskDelay(pdMS_TO_TICKS(5000));
+	while(1)
+	{
+		balancing_update();
+		vTaskDelay(pdMS_TO_TICKS(60000));
+	}
+
 }
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)

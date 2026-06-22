@@ -13,7 +13,7 @@ ALL_MODULES = [BRIDGE_NAME] + SLAVE_NAMES
 # =========================================
 # UART Setup
 # =========================================
-ser = serial.Serial("COM5", 9600, timeout=1)
+ser = serial.Serial("COM4", 9600, timeout=1)
 
 # =========================================
 # Design Tokens
