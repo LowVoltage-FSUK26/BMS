@@ -97,8 +97,6 @@ TaskHandle_t BmsChargerTaskHandle;
 //----------------
 const EventBits_t BMS_INIT_DONE_BIT = (1 << 0);
 
-//todo Make a global event bit variable that holds all initialization bits
-
 EventGroupHandle_t BMS_EventGroup;
 
 //----------------
@@ -121,6 +119,7 @@ QueueHandle_t bmsTempQueue;
 #ifdef EVENT_GROUP
 SemaphoreHandle_t UART_MUTEX;
 #endif
+SemaphoreHandle_t CAN_MUTEX;
 
 
 //Private user Variables
@@ -141,9 +140,9 @@ extern EventGroupHandle_t uartEventGroup;
 //    CAN Variables
 //-----------------------
 CAN_TxHeaderTypeDef BMS_CAN_TxHandler;
+CAN_TxHeaderTypeDef BMS_CHAR_CAN_TxHandler;
 CAN_RxHeaderTypeDef BMS_CAN_RxHandler;
 
-CAN_TxHeaderTypeDef BMS_CAN_TxHandler_Ext;
 uint32_t TxMailbox;
 uint8_t BMS_CAN_TxData[8];
 BMS_CAN_Frame_t BMS_CAN_RxData;
@@ -151,7 +150,8 @@ BMS_CAN_Frame_t BMS_CAN_RxData;
 //------------------------
 //    CHARGER Variables
 //-----------------------
-
+volatile uint8_t charger_fault = 0;
+volatile TickType_t charger_last_rx_time;
 
 
 /* USER CODE END PV */
@@ -278,7 +278,7 @@ int main(void)
 
 	//==================Define MUTEX===================//
 	UART_MUTEX = xSemaphoreCreateMutex();
-
+	CAN_MUTEX  = xSemaphoreCreateMutex();
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
@@ -535,7 +535,6 @@ void BMS_Init(void const * argument)
 	init_done = 1;
 #endif
 
-	//todo make it a for loop on the number of slaves
 	for(uint8_t i = 1; i < TOTALBOARDS; i++)
 	{
 
@@ -852,11 +851,14 @@ void BMS_CanTX_Task(void const * argument)
 				BMS_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
 			}
 
+			xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
 			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, (uint8_t*)&(CAN_Queue_Buffer.Data), &TxMailbox) != HAL_OK)
 			{
 				//error
 				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 			}
+			xSemaphoreGive(CAN_MUTEX);
+			vTaskDelay(pdMS_TO_TICKS(10)); //delay for Charger task to take mutex
 
 			//			vTaskDelay(pdMS_TO_TICKS(50));
 		}
@@ -866,169 +868,203 @@ void BMS_CanTX_Task(void const * argument)
 
 void BMS_ChargerTask(void const * argument)
 {
-	BMS_CAN_Queue_Message_t can_buffer;
-	uint8_t charger_fault = 0;
-
-	//Wait for EXTI
-
+	BMS_CAN_Frame_t tx_frame = {0};
+	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
+	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
+	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
+	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
+	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
 
 	for(;;)
 	{
-		memset(&can_buffer, 0, sizeof(can_buffer));
-		can_buffer.type = BMS_CHARGER;
-		can_buffer.Data.bytes[0] = CHAR_MAX_VOLT_High;
-		can_buffer.Data.bytes[1] = CHAR_MAX_VOLT_low;
-		can_buffer.Data.bytes[2] = CHAR_MAX_AMP_High;
-		can_buffer.Data.bytes[3] = CHAR_MAX_AMP_low;
-		can_buffer.Data.bytes[4] = CHAR_START;
 
+		//Wait for EXTI or current sensor outputs zero
 
-		if(xQueueReceive(bmsCanRXQueue, &can_buffer, pdMS_TO_TICKS(1000)))
+		while(1)
 		{
-			if(BMS_CAN_RxHandler.ExtId == CAN_CH_TO_BMS)
+			//Check charger communication timeout
+			if((xTaskGetTickCount() - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
-				if(BMS_CAN_RxData.bytes[4] & 0x08) //charger is ON
+				charger_fault = 1;
+			}
+
+			//Charger fault detected
+			memset(&tx_frame,0,sizeof(tx_frame));
+
+			if(charger_fault)
+			{
+
+				tx_frame.bytes[0] = 0;
+				tx_frame.bytes[1] = 0;
+				tx_frame.bytes[2] = 0;
+				tx_frame.bytes[3] = 0;
+				tx_frame.bytes[4] = CHAR_STOP;
+
+				//send stop frame
+				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+				if( HAL_CAN_AddTxMessage(&hcan, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
 				{
+					//error
+					HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
+				}
+				xSemaphoreGive(CAN_MUTEX);
+				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
+
+				charger_fault = 0;
+
+				break;
+			}
+			else
+			{
+				tx_frame.bytes[0] = CHAR_MAX_VOLT_High;
+				tx_frame.bytes[1] = CHAR_MAX_VOLT_low;
+				tx_frame.bytes[2] = CHAR_MAX_AMP_High;
+				tx_frame.bytes[3] = CHAR_MAX_AMP_low;
+				tx_frame.bytes[4] = CHAR_START;
+				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+				if( HAL_CAN_AddTxMessage(&hcan, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
+				{
+					//error
+					HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
+				}
+				xSemaphoreGive(CAN_MUTEX);
+				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
+			}
+
+			vTaskDelay(pdMS_TO_TICKS(1000));
+
+		}
+
+	}
+}
 
 
-					if((BMS_CAN_RxData.bytes[4] & 0b111) != 0) //Fault Occurred
-					{
-						charger_fault = 1;
-					}
+	void BMS_FaultTask(void const * argument)
+	{
+		while(1)
+		{
+			xEventGroupWaitBits(
+					faultEventGroup,
+					FAULT_EVENT_BIT,
+					pdTRUE,
+					pdFALSE,
+					portMAX_DELAY
+			);
+
+			//		Bridge_CheckFaults();
+			//		Stack_CheckFaultSummary();
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+			vTaskDelay(1000);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+			vTaskDelay(1000);
+			Send_GUI_Reading ();
+
+		}
+
+		BMS_Request_t req;
+		req.requester = xTaskGetCurrentTaskHandle();
+		req.cmd = CMD_READ_BRIDGE_FS;
+		uint8_t cmd_res = 0;
+		//todo Make timeout and Handling to this timeout
+		xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+		for(;;)
+		{
+			xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
+			xTaskNotifyWait(0, NOTIFY_BMS_GOT_FS, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+			//read fault_summary variable and handle it
+			vTaskDelay(pdMS_TO_TICKS(500));
+		}
+	}
+
+
+	void BMS_BalancingTask(void const * argument)
+	{
+		vTaskDelay(pdMS_TO_TICKS(5000));
+		while(1)
+		{
+			balancing_update();
+			vTaskDelay(pdMS_TO_TICKS(60000));
+		}
+
+	}
+
+	void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+	{
+		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+		//Not check on ID, As Can filter only receives charger frames
+		if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) == HAL_OK)
+		{
+			// Charger broadcast received
+			charger_last_rx_time = xTaskGetTickCountFromISR();
+
+			if(BMS_CAN_RxData.bytes[4] & 0b1000) //charger is ON
+			{
+
+				if((BMS_CAN_RxData.bytes[4] & 0b0111) != 0) //Fault Occurred
+				{
+					charger_fault = 1;
 				}
 			}
+
+			return; // Error
 		}
 
-		if(charger_fault == 1)
+	}
+
+
+
+	/* USER CODE END 4 */
+
+	/**
+	 * @brief  Period elapsed callback in non blocking mode
+	 * @note   This function is called  when TIM1 interrupt took place, inside
+	 * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+	 * a global variable "uwTick" used as application time base.
+	 * @param  htim : TIM handle
+	 * @retval None
+	 */
+	void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+	{
+		/* USER CODE BEGIN Callback 0 */
+
+		/* USER CODE END Callback 0 */
+		if (htim->Instance == TIM1) {
+			HAL_IncTick();
+		}
+		/* USER CODE BEGIN Callback 1 */
+
+		/* USER CODE END Callback 1 */
+	}
+
+	/**
+	 * @brief  This function is executed in case of error occurrence.
+	 * @retval None
+	 */
+	void Error_Handler(void)
+	{
+		/* USER CODE BEGIN Error_Handler_Debug */
+		/* User can add his own implementation to report the HAL error return state */
+		__disable_irq();
+		while (1)
 		{
-			can_buffer.Data.bytes[4] = CHAR_STOP;
 		}
-		else
-		{
-			can_buffer.Data.bytes[4] = CHAR_START;
-		}
-
-		xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
+		/* USER CODE END Error_Handler_Debug */
 	}
-}
-
-
-void BMS_FaultTask(void const * argument)
-{
-	while(1)
-	{
-		xEventGroupWaitBits(
-				faultEventGroup,
-				FAULT_EVENT_BIT,
-				pdTRUE,
-				pdFALSE,
-				portMAX_DELAY
-		);
-
-		//		Bridge_CheckFaults();
-		//		Stack_CheckFaultSummary();
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-		vTaskDelay(1000);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-		vTaskDelay(1000);
-		Send_GUI_Reading ();
-
-	}
-
-	BMS_Request_t req;
-	req.requester = xTaskGetCurrentTaskHandle();
-	req.cmd = CMD_READ_BRIDGE_FS;
-	uint8_t cmd_res = 0;
-	//todo Make timeout and Handling to this timeout
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-	for(;;)
-	{
-		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_FS, NULL, pdMS_TO_TICKS(portMAX_DELAY));
-		//read fault_summary variable and handle it
-		vTaskDelay(pdMS_TO_TICKS(500));
-	}
-}
-
-
-void BMS_BalancingTask(void const * argument)
-{
-	vTaskDelay(pdMS_TO_TICKS(5000));
-	while(1)
-	{
-		balancing_update();
-		vTaskDelay(pdMS_TO_TICKS(60000));
-	}
-
-}
-
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
-{
-	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) == HAL_OK)
-	{
-		//As Can filter only receives charger frames
-		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-		xQueueSendFromISR(bmsCanRXQueue, &BMS_CAN_RxData, &xHigherPriorityTaskWoken);
-		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-
-		return; // Error
-	}
-
-}
-
-
-
-/* USER CODE END 4 */
-
-/**
- * @brief  Period elapsed callback in non blocking mode
- * @note   This function is called  when TIM1 interrupt took place, inside
- * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
- * a global variable "uwTick" used as application time base.
- * @param  htim : TIM handle
- * @retval None
- */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-	/* USER CODE BEGIN Callback 0 */
-
-	/* USER CODE END Callback 0 */
-	if (htim->Instance == TIM1) {
-		HAL_IncTick();
-	}
-	/* USER CODE BEGIN Callback 1 */
-
-	/* USER CODE END Callback 1 */
-}
-
-/**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
-void Error_Handler(void)
-{
-	/* USER CODE BEGIN Error_Handler_Debug */
-	/* User can add his own implementation to report the HAL error return state */
-	__disable_irq();
-	while (1)
-	{
-	}
-	/* USER CODE END Error_Handler_Debug */
-}
 
 #ifdef  USE_FULL_ASSERT
-/**
- * @brief  Reports the name of the source file and the source line number
- *         where the assert_param error has occurred.
- * @param  file: pointer to the source file name
- * @param  line: assert_param error line source number
- * @retval None
- */
-void assert_failed(uint8_t *file, uint32_t line)
-{
-	/* USER CODE BEGIN 6 */
-	/* User can add his own implementation to report the file name and line number,
+	/**
+	 * @brief  Reports the name of the source file and the source line number
+	 *         where the assert_param error has occurred.
+	 * @param  file: pointer to the source file name
+	 * @param  line: assert_param error line source number
+	 * @retval None
+	 */
+	void assert_failed(uint8_t *file, uint32_t line)
+	{
+		/* USER CODE BEGIN 6 */
+		/* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-	/* USER CODE END 6 */
-}
+		/* USER CODE END 6 */
+	}
 #endif /* USE_FULL_ASSERT */
