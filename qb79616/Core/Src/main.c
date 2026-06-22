@@ -149,7 +149,6 @@ BMS_CAN_Frame_t BMS_CAN_RxData;
 //------------------------
 //    CHARGER Variables
 //-----------------------
-uint8_t charger_fault = 0;
 
 
 
@@ -279,12 +278,12 @@ int main(void)
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-	//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 6, &BmsChargerTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 3, &BmsChargerTaskHandle);
 
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
@@ -663,7 +662,6 @@ void BMS_MonitorTask(void const * argument)
 		}
 
 		xSemaphoreGive(UART_MUTEX);
-		vTaskDelay(pdMS_TO_TICKS(500));
 	}
 }
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -864,6 +862,9 @@ void BMS_ChargerTask(void const * argument)
 	BMS_CAN_Queue_Message_t can_buffer;
 	uint8_t charger_fault = 0;
 
+	//Wait for EXTI
+
+
 	for(;;)
 	{
 		memset(&can_buffer, 0, sizeof(can_buffer));
@@ -873,12 +874,16 @@ void BMS_ChargerTask(void const * argument)
 		can_buffer.Data.bytes[2] = CHAR_MAX_AMP_High;
 		can_buffer.Data.bytes[3] = CHAR_MAX_AMP_low;
 		can_buffer.Data.bytes[4] = CHAR_START;
-		if(xQueueReceive(bmsCanRXQueue, &can_buffer, pdMS_TO_TICKS(800)))
+
+
+		if(xQueueReceive(bmsCanRXQueue, &can_buffer, pdMS_TO_TICKS(1000)))
 		{
 			if(BMS_CAN_RxHandler.ExtId == CAN_CH_TO_BMS)
 			{
-				if((BMS_CAN_RxData.bytes[4] & (1<<3)) != 1) //charger is ON
+				if(BMS_CAN_RxData.bytes[4] & 0x08) //charger is ON
 				{
+
+
 					if((BMS_CAN_RxData.bytes[4] & 0b111) != 0) //Fault Occurred
 					{
 						charger_fault = 1;
@@ -896,7 +901,7 @@ void BMS_ChargerTask(void const * argument)
 			can_buffer.Data.bytes[4] = CHAR_START;
 		}
 
-		xQueueSendToFront(bmsCanTXQueue, &can_buffer, (TickType_t)10);
+		xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
 	}
 }
 
