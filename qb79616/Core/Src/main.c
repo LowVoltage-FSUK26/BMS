@@ -208,6 +208,9 @@ int16_t BMS_data_convert(BMS_DataType_t type, int data)
 	case BMS_DATA_TEMPERATURE:
 		data = (int16_t)(((float)(data) * VLSB_GPIO) * 100);
 		break;
+	case BMS_CHARGER:
+		data = (int16_t)((float)(data) / 10);
+		break;
 	}
 
 	return data;
