@@ -284,7 +284,7 @@ int main(void)
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
@@ -874,14 +874,21 @@ void BMS_ChargerTask(void const * argument)
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
 	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
 	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
-
-	for(;;)
+	int i = 0;
+	while(1)
 	{
 
 		//Wait for EXTI or current sensor outputs zero
+		while(i != 0)
+		{
+
+		}
+		charger_fault = 0;
+
 
 		while(1)
 		{
+			i++;
 			//Check charger communication timeout
 			if((xTaskGetTickCount() - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
@@ -909,8 +916,6 @@ void BMS_ChargerTask(void const * argument)
 				}
 				xSemaphoreGive(CAN_MUTEX);
 				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
-
-				charger_fault = 0;
 
 				break;
 			}
@@ -998,7 +1003,7 @@ void BMS_ChargerTask(void const * argument)
 			// Charger broadcast received
 			charger_last_rx_time = xTaskGetTickCountFromISR();
 
-			if(BMS_CAN_RxData.bytes[4] & 0b1000) //charger is ON
+			if((BMS_CAN_RxData.bytes[4] & 0b1000) == 0) //charger is ON
 			{
 
 				if((BMS_CAN_RxData.bytes[4] & 0b0111) != 0) //Fault Occurred
