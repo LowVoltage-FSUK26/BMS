@@ -133,9 +133,9 @@ void Wake79600_RTOS(void)
 	// Drive TX low
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
-	vTaskDelay(pdMS_TO_TICKS(2)); // WAKE ping = 2.5ms to 3ms
+	vTaskDelay(pdMS_TO_TICKS(3)); // WAKE ping = 2.5ms to 3ms
 
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 
 	// Reinitialize UART (this call should reconfigure PA9 to its alternate function)
 	HAL_UART_Init(&huart1);
