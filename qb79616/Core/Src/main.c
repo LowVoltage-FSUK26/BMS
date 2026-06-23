@@ -887,11 +887,11 @@ void BMS_ChargerTask(void const * argument)
 
 		}
 		charger_fault = 0;
-
+		i++;
 
 		while(1)
 		{
-			i++;
+
 			//Check charger communication timeout
 			if((xTaskGetTickCount() - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
