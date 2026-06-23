@@ -38,5 +38,5 @@
 "./FreeRTOS/FreeRTOS/Source/stream_buffer.o"
 "./FreeRTOS/FreeRTOS/Source/tasks.o"
 "./FreeRTOS/FreeRTOS/Source/timers.o"
-"./FreeRTOS/FreeRTOS/Source/portable/GCC/ARM_CM3/port.o"
+"./FreeRTOS/FreeRTOS/Source/portable/GCC/ARM_CM4F/port.o"
 "./FreeRTOS/FreeRTOS/Source/portable/MemMang/heap_1.o"

@@ -104,12 +104,9 @@ EventGroupHandle_t BMS_EventGroup;
 //----------------
 
 QueueHandle_t bmsCanTXQueue;
-QueueHandle_t bmsCanRXQueue;
-QueueHandle_t bmsCanRXQueue;
 QueueHandle_t bmsCmdQueue;
 //QueueHandle_t bmsMeasurmentsQueue;
 QueueHandle_t bmsVoltageQueue;
-QueueHandle_t bmsTempQueue;
 QueueHandle_t bmsTempQueue;
 
 
@@ -273,7 +270,6 @@ int main(void)
 	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 3, sizeof(BMS_Queue_Measurement_t));
 	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
 	bmsCanTXQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
-	bmsCanRXQueue = xQueueCreate(8, sizeof(BMS_CAN_Frame_t));
 
 
 	//==================Define MUTEX===================//
@@ -585,7 +581,7 @@ void BMS_GUI_Task(void const * argument)
 	for(;;)
 	{
 
-//		Send_GUI_Reading();
+		Send_GUI_Reading();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		vTaskDelay(500);
@@ -866,11 +862,12 @@ void BMS_CanTX_Task(void const * argument)
 	}
 
 }
-BMS_CAN_Frame_t tx_frame = {0};
+
 
 void BMS_ChargerTask(void const * argument)
 {
 
+	BMS_CAN_Frame_t tx_frame = {0};
 	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
 	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID

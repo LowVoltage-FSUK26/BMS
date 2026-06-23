@@ -101,7 +101,7 @@ typedef union
 } BMS_CAN_Frame_t;
 
 
-typedef union
+typedef union //to be used in future
 {
 	uint8_t bytes[8];
 
