@@ -81,7 +81,7 @@ extern uint8_t bridge_faultCOMM2;
 //TaskHandle_t defaultTaskHandle;
 
 TaskHandle_t BmsInitTaskHandle;
-TaskHandle_t BmsCanTaskHandle;
+TaskHandle_t BmsCanTxTaskHandle;
 TaskHandle_t BmsMonitorTaskHandle;
 TaskHandle_t BmsCommandTaskHandle;
 TaskHandle_t BmsCellVoltageTaskHandle;
@@ -89,6 +89,7 @@ TaskHandle_t BmsReadTempTaskHandle;
 TaskHandle_t BmsFaultTaskHandle;
 TaskHandle_t BmsBalancingTaskHandle;
 TaskHandle_t BmsGUITaskHandle;
+TaskHandle_t BmsChargerTaskHandle;
 
 
 //----------------
@@ -96,18 +97,19 @@ TaskHandle_t BmsGUITaskHandle;
 //----------------
 const EventBits_t BMS_INIT_DONE_BIT = (1 << 0);
 
-//todo Make a global event bit variable that holds all initialization bits
-
 EventGroupHandle_t BMS_EventGroup;
 
 //----------------
 //RTOS Queues
 //----------------
 
-QueueHandle_t bmsCanQueue;
+QueueHandle_t bmsCanTXQueue;
+QueueHandle_t bmsCanRXQueue;
+QueueHandle_t bmsCanRXQueue;
 QueueHandle_t bmsCmdQueue;
 //QueueHandle_t bmsMeasurmentsQueue;
 QueueHandle_t bmsVoltageQueue;
+QueueHandle_t bmsTempQueue;
 QueueHandle_t bmsTempQueue;
 
 
@@ -117,6 +119,7 @@ QueueHandle_t bmsTempQueue;
 #ifdef EVENT_GROUP
 SemaphoreHandle_t UART_MUTEX;
 #endif
+SemaphoreHandle_t CAN_MUTEX;
 
 
 //Private user Variables
@@ -137,11 +140,18 @@ extern EventGroupHandle_t uartEventGroup;
 //    CAN Variables
 //-----------------------
 CAN_TxHeaderTypeDef BMS_CAN_TxHandler;
+CAN_TxHeaderTypeDef BMS_CHAR_CAN_TxHandler;
 CAN_RxHeaderTypeDef BMS_CAN_RxHandler;
+
 uint32_t TxMailbox;
 uint8_t BMS_CAN_TxData[8];
 BMS_CAN_Frame_t BMS_CAN_RxData;
 
+//------------------------
+//    CHARGER Variables
+//-----------------------
+volatile uint8_t charger_fault = 0;
+volatile TickType_t charger_last_rx_time;
 
 
 /* USER CODE END PV */
@@ -173,7 +183,9 @@ void BMS_FaultTask(void const * argument);
 
 void BMS_BalancingTask(void const * argument);
 
-void BMS_CanTask(void const * argument);
+void BMS_CanTX_Task(void const * argument);
+
+void BMS_ChargerTask(void const * argument);
 
 void BMS_GUI_Task(void const * argument);
 
@@ -196,6 +208,9 @@ int16_t BMS_data_convert(BMS_DataType_t type, int data)
 	case BMS_DATA_TEMPERATURE:
 		data = (int16_t)(((float)(data) * VLSB_GPIO) * 100);
 		break;
+	case BMS_CHARGER:
+		data = (int16_t)((float)(data) / 10);
+		break;
 	}
 
 	return data;
@@ -205,38 +220,38 @@ int16_t BMS_data_convert(BMS_DataType_t type, int data)
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  * @retval int
-  */
+ * @brief  The application entry point.
+ * @retval int
+ */
 int main(void)
 {
 
-  /* USER CODE BEGIN 1 */
+	/* USER CODE BEGIN 1 */
 
-  /* USER CODE END 1 */
+	/* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	/* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	HAL_Init();
 
-  /* USER CODE BEGIN Init */
+	/* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	/* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	/* Configure the system clock */
+	SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+	/* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+	/* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_USART1_UART_Init();
-  MX_USART2_UART_Init();
-  MX_CAN_Init();
-  /* USER CODE BEGIN 2 */
+	/* Initialize all configured peripherals */
+	MX_GPIO_Init();
+	MX_USART1_UART_Init();
+	MX_USART2_UART_Init();
+	MX_CAN_Init();
+	/* USER CODE BEGIN 2 */
 
 	BMS_Can_Init();
 
@@ -254,25 +269,28 @@ int main(void)
 	//==================Define Queues===================//
 
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-//	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	//	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
 	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 3, sizeof(BMS_Queue_Measurement_t));
 	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
-	bmsCanQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
+	bmsCanTXQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
+	bmsCanRXQueue = xQueueCreate(8, sizeof(BMS_CAN_Frame_t));
 
 
 	//==================Define MUTEX===================//
 	UART_MUTEX = xSemaphoreCreateMutex();
-
+	CAN_MUTEX  = xSemaphoreCreateMutex();
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CanTask, "BMS_CanTask", 128, NULL,(UBaseType_t) 5, &BmsCanTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
+
 	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
@@ -281,212 +299,212 @@ int main(void)
 
 	//=============Start the Scheduler================//
 	vTaskStartScheduler();
-  /* USER CODE END 2 */
+	/* USER CODE END 2 */
 
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
+	/* Infinite loop */
+	/* USER CODE BEGIN WHILE */
 	while (1)
 	{
 
 
-    /* USER CODE END WHILE */
+		/* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+		/* USER CODE BEGIN 3 */
 	}
-  /* USER CODE END 3 */
+	/* USER CODE END 3 */
 }
 
 /**
-  * @brief System Clock Configuration
-  * @retval None
-  */
+ * @brief System Clock Configuration
+ * @retval None
+ */
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	/** Initializes the RCC Oscillators according to the specified parameters
+	 * in the RCC_OscInitTypeDef structure.
+	 */
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+	{
+		Error_Handler();
+	}
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	/** Initializes the CPU, AHB and APB buses clocks
+	 */
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+			|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+	{
+		Error_Handler();
+	}
 }
 
 /**
-  * @brief CAN Initialization Function
-  * @param None
-  * @retval None
-  */
+ * @brief CAN Initialization Function
+ * @param None
+ * @retval None
+ */
 static void MX_CAN_Init(void)
 {
 
-  /* USER CODE BEGIN CAN_Init 0 */
+	/* USER CODE BEGIN CAN_Init 0 */
 
-  /* USER CODE END CAN_Init 0 */
+	/* USER CODE END CAN_Init 0 */
 
-  /* USER CODE BEGIN CAN_Init 1 */
+	/* USER CODE BEGIN CAN_Init 1 */
 
-  /* USER CODE END CAN_Init 1 */
-  hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 18;
-  hcan.Init.Mode = CAN_MODE_NORMAL;
-  hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
-  hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
-  hcan.Init.TimeTriggeredMode = DISABLE;
-  hcan.Init.AutoBusOff = DISABLE;
-  hcan.Init.AutoWakeUp = DISABLE;
-  hcan.Init.AutoRetransmission = DISABLE;
-  hcan.Init.ReceiveFifoLocked = DISABLE;
-  hcan.Init.TransmitFifoPriority = DISABLE;
-  if (HAL_CAN_Init(&hcan) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN CAN_Init 2 */
+	/* USER CODE END CAN_Init 1 */
+	hcan.Instance = CAN1;
+	hcan.Init.Prescaler = 18;
+	hcan.Init.Mode = CAN_MODE_NORMAL;
+	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+	hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
+	hcan.Init.TimeSeg2 = CAN_BS2_1TQ;
+	hcan.Init.TimeTriggeredMode = DISABLE;
+	hcan.Init.AutoBusOff = DISABLE;
+	hcan.Init.AutoWakeUp = DISABLE;
+	hcan.Init.AutoRetransmission = DISABLE;
+	hcan.Init.ReceiveFifoLocked = DISABLE;
+	hcan.Init.TransmitFifoPriority = DISABLE;
+	if (HAL_CAN_Init(&hcan) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN CAN_Init 2 */
 
-  /* USER CODE END CAN_Init 2 */
+	/* USER CODE END CAN_Init 2 */
 
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
+ * @brief USART1 Initialization Function
+ * @param None
+ * @retval None
+ */
 static void MX_USART1_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+	/* USER CODE BEGIN USART1_Init 0 */
 
-  /* USER CODE END USART1_Init 0 */
+	/* USER CODE END USART1_Init 0 */
 
-  /* USER CODE BEGIN USART1_Init 1 */
+	/* USER CODE BEGIN USART1_Init 1 */
 
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 1000000;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
+	/* USER CODE END USART1_Init 1 */
+	huart1.Instance = USART1;
+	huart1.Init.BaudRate = 1000000;
+	huart1.Init.WordLength = UART_WORDLENGTH_8B;
+	huart1.Init.StopBits = UART_STOPBITS_1;
+	huart1.Init.Parity = UART_PARITY_NONE;
+	huart1.Init.Mode = UART_MODE_TX_RX;
+	huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+	if (HAL_UART_Init(&huart1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN USART1_Init 2 */
 
-  /* USER CODE END USART1_Init 2 */
+	/* USER CODE END USART1_Init 2 */
 
 }
 
 /**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
+ * @brief USART2 Initialization Function
+ * @param None
+ * @retval None
+ */
 static void MX_USART2_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART2_Init 0 */
+	/* USER CODE BEGIN USART2_Init 0 */
 
-  /* USER CODE END USART2_Init 0 */
+	/* USER CODE END USART2_Init 0 */
 
-  /* USER CODE BEGIN USART2_Init 1 */
+	/* USER CODE BEGIN USART2_Init 1 */
 
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 9600;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
+	/* USER CODE END USART2_Init 1 */
+	huart2.Instance = USART2;
+	huart2.Init.BaudRate = 9600;
+	huart2.Init.WordLength = UART_WORDLENGTH_8B;
+	huart2.Init.StopBits = UART_STOPBITS_1;
+	huart2.Init.Parity = UART_PARITY_NONE;
+	huart2.Init.Mode = UART_MODE_TX_RX;
+	huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+	if (HAL_UART_Init(&huart2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN USART2_Init 2 */
 
-  /* USER CODE END USART2_Init 2 */
+	/* USER CODE END USART2_Init 2 */
 
 }
 
 /**
-  * @brief GPIO Initialization Function
-  * @param None
-  * @retval None
-  */
+ * @brief GPIO Initialization Function
+ * @param None
+ * @retval None
+ */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
+	/* USER CODE BEGIN MX_GPIO_Init_1 */
+	/* USER CODE END MX_GPIO_Init_1 */
 
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOD_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_3, GPIO_PIN_RESET);
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_3, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	/*Configure GPIO pin : PC13 */
+	GPIO_InitStruct.Pin = GPIO_PIN_13;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB12 PB3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_3;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	/*Configure GPIO pins : PB12 PB3 */
+	GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_3;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA8 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	/*Configure GPIO pin : PA8 */
+	GPIO_InitStruct.Pin = GPIO_PIN_8;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+	GPIO_InitStruct.Pull = GPIO_PULLUP;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+	/* EXTI interrupt init*/
+	HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
+	/* USER CODE BEGIN MX_GPIO_Init_2 */
+	/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -517,7 +535,6 @@ void BMS_Init(void const * argument)
 	init_done = 1;
 #endif
 
-	//todo make it a for loop on the number of slaves
 	for(uint8_t i = 1; i < TOTALBOARDS; i++)
 	{
 
@@ -568,7 +585,7 @@ void BMS_GUI_Task(void const * argument)
 	for(;;)
 	{
 
-		Send_GUI_Reading();
+//		Send_GUI_Reading();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		vTaskDelay(500);
@@ -613,7 +630,7 @@ void BMS_MonitorTask(void const * argument)
 				buffer.slave_id = i;
 				buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
 				xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-//				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+				//				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 				xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 			}
 
@@ -621,7 +638,7 @@ void BMS_MonitorTask(void const * argument)
 			buffer.slave_id = BATTERYVOLT_ID;
 			buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_battary_voltage);
 			xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-//			xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+			//			xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
 			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		}
 		xSemaphoreGive(UART_MUTEX);
@@ -631,7 +648,7 @@ void BMS_MonitorTask(void const * argument)
 
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 		{
-//			buffer.type = BMS_DATA_TEMPERATURE;
+			//			buffer.type = BMS_DATA_TEMPERATURE;
 			for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
 			{
 				buffer.slave_id = i;
@@ -651,7 +668,7 @@ void BMS_MonitorTask(void const * argument)
 		}
 
 		xSemaphoreGive(UART_MUTEX);
-
+//		vTaskDelay(pdMS_TO_TICKS(1000));
 	}
 }
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -721,7 +738,7 @@ void BMS_CellVoltageTask(void const * argument)
 			if(((volt_buffer.slave_id % CAN_DATA_PER_FRAME) == 0))
 			{
 				can_buffer.first_slave_id = volt_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-				xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+				xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
 				memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
 			}
 
@@ -764,29 +781,29 @@ void BMS_ReadTempTask(void const * argument)
 		if(xQueueReceive(bmsTempQueue, &temperature_buffer, (TickType_t)10) == pdTRUE)
 		{
 
-				if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) &&  (temperature_buffer.slave_id != prev_first_ID))
+			if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) &&  (temperature_buffer.slave_id != prev_first_ID))
+			{
+				if(prev_first_ID != 0)
 				{
-					if(prev_first_ID != 0)
-					{
-						can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-						xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
-						memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-					}
-					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
-					prev_first_ID = temperature_buffer.slave_id;
-				}
-				else if(temperature_buffer.slave_id % CAN_DATA_PER_FRAME != 1)
-				{
-					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
-				}
-				else if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) && (temperature_buffer.slave_id == prev_first_ID))
-				{
-					can_buffer.first_slave_id = prev_first_ID;
-					xQueueSendToBack(bmsCanQueue, &can_buffer, (TickType_t)10);
+					can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
+					xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
 					memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-					can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
-					prev_first_ID = temperature_buffer.slave_id;
 				}
+				can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
+				prev_first_ID = temperature_buffer.slave_id;
+			}
+			else if(temperature_buffer.slave_id % CAN_DATA_PER_FRAME != 1)
+			{
+				can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
+			}
+			else if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) && (temperature_buffer.slave_id == prev_first_ID))
+			{
+				can_buffer.first_slave_id = prev_first_ID;
+				xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
+				memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
+				can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
+				prev_first_ID = temperature_buffer.slave_id;
+			}
 
 		}
 		else
@@ -800,43 +817,134 @@ void BMS_ReadTempTask(void const * argument)
 }
 
 
-void BMS_CanTask(void const * argument)
+void BMS_CanTX_Task(void const * argument)
 {
 	BMS_CAN_Queue_Message_t CAN_Queue_Buffer;
-	BMS_CAN_TxHandler.ExtId = 0x00;                 //Message ID extension for CAN extend
-	BMS_CAN_TxHandler.IDE = CAN_ID_STD;             //CAN ID is 11 bits
 	BMS_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
 	BMS_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
+
+
 
 
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
 	for(;;)
 	{
-		if(xQueueReceive(bmsCanQueue, &CAN_Queue_Buffer, (TickType_t)10) == pdTRUE)
+		if(xQueueReceive(bmsCanTXQueue, &CAN_Queue_Buffer, (TickType_t)10) == pdTRUE)
 		{
-			//todo SET proper IDS
+
 			if(CAN_Queue_Buffer.type == BMS_DATA_VOLTAGE)
 			{
-				BMS_CAN_TxHandler.StdId = CAN_VOLT_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
+				BMS_CAN_TxHandler.StdId = CAN_VOLT_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);
+				BMS_CAN_TxHandler.ExtId = 0x00;                 //Message ID extension for CAN extend
+				BMS_CAN_TxHandler.IDE = CAN_ID_STD;             //CAN ID is 11 bits//Message ID
 			}
 			else if(CAN_Queue_Buffer.type == BMS_DATA_TEMPERATURE)
 			{
 				BMS_CAN_TxHandler.StdId = CAN_TEMP_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
+				BMS_CAN_TxHandler.ExtId = 0x00;                 //Message ID extension for CAN extend
+				BMS_CAN_TxHandler.IDE = CAN_ID_STD;             //CAN ID is 11 bits
+			}
+			else if(CAN_Queue_Buffer.type == BMS_CHARGER)
+			{
+				BMS_CAN_TxHandler.StdId = 0x00;               //Message ID
+				BMS_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
+				BMS_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
 			}
 
+			xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
 			if( HAL_CAN_AddTxMessage(&hcan, &BMS_CAN_TxHandler, (uint8_t*)&(CAN_Queue_Buffer.Data), &TxMailbox) != HAL_OK)
 			{
 				//error
 				HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 			}
+			xSemaphoreGive(CAN_MUTEX);
+			vTaskDelay(pdMS_TO_TICKS(10)); //delay for Charger task to take mutex
 
-//			vTaskDelay(pdMS_TO_TICKS(50));
+			//			vTaskDelay(pdMS_TO_TICKS(50));
 		}
 	}
 
 }
+BMS_CAN_Frame_t tx_frame = {0};
 
+void BMS_ChargerTask(void const * argument)
+{
+
+	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
+	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
+	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
+	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
+	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+	int i = 0;
+	while(1)
+	{
+
+		//Wait for EXTI or current sensor outputs zero
+		while(i != 0)
+		{
+
+		}
+		charger_fault = 0;
+		i++;
+
+		while(1)
+		{
+
+			//Check charger communication timeout
+			if((xTaskGetTickCount() - charger_last_rx_time) > pdMS_TO_TICKS(5000))
+			{
+				charger_fault = 1;
+			}
+
+			//Charger fault detected
+			memset(&tx_frame,0,sizeof(tx_frame));
+
+			if(charger_fault)
+			{
+
+				tx_frame.bytes[0] = 0;
+				tx_frame.bytes[1] = 0;
+				tx_frame.bytes[2] = 0;
+				tx_frame.bytes[3] = 0;
+				tx_frame.bytes[4] = CHAR_STOP;
+
+				//send stop frame
+				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+				if( HAL_CAN_AddTxMessage(&hcan, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
+				{
+					//error
+					HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
+				}
+				xSemaphoreGive(CAN_MUTEX);
+				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
+
+				break;
+			}
+			else
+			{
+				tx_frame.bytes[0] = CHAR_MAX_VOLT_High;
+				tx_frame.bytes[1] = CHAR_MAX_VOLT_low;
+				tx_frame.bytes[2] = CHAR_MAX_AMP_High;
+				tx_frame.bytes[3] = CHAR_MAX_AMP_low;
+				tx_frame.bytes[4] = CHAR_START;
+				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+				if( HAL_CAN_AddTxMessage(&hcan, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
+				{
+					//error
+					HAL_UART_Transmit(&huart2, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
+				}
+				xSemaphoreGive(CAN_MUTEX);
+				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
+			}
+
+			vTaskDelay(pdMS_TO_TICKS(1000));
+
+		}
+
+	}
+}
 
 
 void BMS_FaultTask(void const * argument)
@@ -899,30 +1007,23 @@ void BMS_BalancingTask(void const * argument)
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) != HAL_OK)
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+	//Not check on ID, As Can filter only receives charger frames
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) == HAL_OK)
 	{
-//		char buffer[100];
-//		if(BMS_CAN_RxHandler.StdId >= 0x200)
-//		{
-//			snprintf(buffer, sizeof(buffer),
-//					"s1 = %d C s2 = %d C s3 = %d C s4 = %d C\r\n",
-//					(BMS_CAN_RxData.frame.slave[0] / 100),
-//					(BMS_CAN_RxData.frame.slave[1] / 100),
-//					(BMS_CAN_RxData.frame.slave[2] / 100),
-//					(BMS_CAN_RxData.frame.slave[3] / 100));
-//		}
-//		else
-//		{
-//			snprintf(buffer, sizeof(buffer),
-//				"s1 = %d v s2 = %d v s3 = %d s4 = %d v\r\n",
-//				(BMS_CAN_RxData.frame.slave[0] / 100),
-//				(BMS_CAN_RxData.frame.slave[1] / 100),
-//				(BMS_CAN_RxData.frame.slave[2] / 100),
-//				(BMS_CAN_RxData.frame.slave[3] / 100));
-//		}
-//
-//
-//		    HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
+		// Charger broadcast received
+		charger_last_rx_time = xTaskGetTickCountFromISR();
+
+		if((BMS_CAN_RxData.bytes[4] & 0b1000) == 0) //charger is ON
+		{
+
+			if((BMS_CAN_RxData.bytes[4] & 0b0111) != 0) //Fault Occurred
+			{
+				charger_fault = 1;
+			}
+		}
+
 		return; // Error
 	}
 
@@ -933,54 +1034,54 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 /* USER CODE END 4 */
 
 /**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM1 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
-  * @param  htim : TIM handle
-  * @retval None
-  */
+ * @brief  Period elapsed callback in non blocking mode
+ * @note   This function is called  when TIM1 interrupt took place, inside
+ * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+ * a global variable "uwTick" used as application time base.
+ * @param  htim : TIM handle
+ * @retval None
+ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-  /* USER CODE BEGIN Callback 0 */
+	/* USER CODE BEGIN Callback 0 */
 
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM1) {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
+	/* USER CODE END Callback 0 */
+	if (htim->Instance == TIM1) {
+		HAL_IncTick();
+	}
+	/* USER CODE BEGIN Callback 1 */
 
-  /* USER CODE END Callback 1 */
+	/* USER CODE END Callback 1 */
 }
 
 /**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
 void Error_Handler(void)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
+	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while (1)
 	{
 	}
-  /* USER CODE END Error_Handler_Debug */
+	/* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
+	/* USER CODE BEGIN 6 */
 	/* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+	/* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

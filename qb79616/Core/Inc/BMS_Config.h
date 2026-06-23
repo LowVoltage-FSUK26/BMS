@@ -24,7 +24,7 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 		3       //boards in stack (including the bridge)
+#define TOTALBOARDS 		2       //boards in stack (including the bridge)
 #define SLAVEBOARDS			(TOTALBOARDS - 1)
 #define ACTIVE_CELLS		16
 #define Thermistor_GPIO 	2
@@ -53,6 +53,28 @@
 #define CAN_DATA_PER_FRAME		(CAN_MSG_SIZE/CAN_DATA_SIZE)
 #define CAN_VOLT_ID				0x100
 #define CAN_TEMP_ID				0x200
+#define CAN_BMS_TO_CH			0x1806E5F4
+#define CAN_CH_TO_BMS			0x18FF50E5
+#define CAN_BMS_TO_CH_STD		((CAN_BMS_TO_CH & 0x1FFC0000) >> 18)
+#define CAN_BMS_TO_CH_ExID		(CAN_BMS_TO_CH & 0x0003FFFF)
+
+/* ------------------------------------
+     CAN Charger MACROS
+   ------------------------------------
+*/
+#define CHAR_MAX_VOLT			6500		//0.1V/byte  offset:0  e.g. Vset=3201, its corresponding 320.1V
+#define CHAR_MAX_VOLT_High		((CHAR_MAX_VOLT & 0xFF00) >> 8)
+#define CHAR_MAX_VOLT_low		(CHAR_MAX_VOLT & 0x00FF)
+
+
+#define CHAR_MAX_AMP			100		//0.1A/byte  offset:0  e.g. Iset=582, its corresponding 58.2A
+#define CHAR_MAX_AMP_High		((CHAR_MAX_AMP & 0xFF00) >> 8)
+#define CHAR_MAX_AMP_low		(CHAR_MAX_AMP & 0x00FF)
+
+//Control
+#define CHAR_START				0
+#define CHAR_STOP				1
+
 
 /* ------------------------------------
      BMS Frame Structs
@@ -78,6 +100,22 @@ typedef union
 
 } BMS_CAN_Frame_t;
 
+
+typedef union
+{
+	uint8_t bytes[8];
+
+	struct {
+
+		uint16_t max_char_VOTL;
+		uint16_t max_char_AMP;
+		uint8_t  control;
+
+	} frame;
+
+} CHARGER_CAN_Frame_t;
+
+
 //---------------------
 //RTOS Design MODE
 //---------------------
@@ -93,6 +131,7 @@ typedef union
 #define NOTIFY_BMS_GOT_VOLT         (1U << 2)
 #define NOTIFY_BMS_GOT_TEMP         (1U << 3)
 #define NOTIFY_BMS_GOT_FS           (1U << 4)
+#define NOTIFY_BMS_CHARGER_ON       (1U << 5)
 
 
 
@@ -104,7 +143,8 @@ typedef union
 typedef enum
 {
     BMS_DATA_VOLTAGE = 0,
-    BMS_DATA_TEMPERATURE = 1
+    BMS_DATA_TEMPERATURE = 1,
+	BMS_CHARGER = 2
 
 } BMS_DataType_t;
 
