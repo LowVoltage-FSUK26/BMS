@@ -535,7 +535,7 @@ void BMS_Init(void const * argument)
 
 	Bridge_FaultInit();
 	Stack_FaultInit();
-	balancing_init();
+
 	vTaskDelay(10);
 
 	//=============================
@@ -876,17 +876,26 @@ void BMS_FaultTask(void const * argument)
 	}
 }
 
-
 void BMS_BalancingTask(void const * argument)
 {
-	vTaskDelay(pdMS_TO_TICKS(5000));
-	while(1)
-	{
-		balancing_update();
-		vTaskDelay(pdMS_TO_TICKS(60000));
-	}
+    // waits for BMS_Init to finish
+    xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
+    // one-time setup
+    xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
+    balancing_init();
+    xSemaphoreGive(UART_MUTEX);
+
+    for (;;)
+    {
+        vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));  // 60 second delay
+
+        xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
+        balancing_update();
+        xSemaphoreGive(UART_MUTEX);
+    }
 }
+
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {

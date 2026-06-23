@@ -81,6 +81,10 @@ void balancing_update(void) {
 	if ((vmax - vmin) < BALANCE_DELTA_LSB) {
 		// Pack is balanced — stop balancing
 
+		for (uint8_t c = 0; c < NUM_CELLS; c++) {
+			writeReg(0, BQ79616_CB_CELL_CTRL_01- c, 0x00, 1, FRMWRT_STK_W);
+		}
+
 		for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
 			writeReg(s, BQ79616_BAL_CTRL2, BAL_CTRL2_STOP, 1, FRMWRT_SGL_W);
 		}
@@ -112,11 +116,8 @@ void balancing_update(void) {
 
 		// Rewrite timers with remaining values
 		for (uint8_t c = 0; c < NUM_CELLS; c++) {
-			uint8_t timer = ((cellVoltages_board[s-1][c] - vmin) > BALANCE_DELTA_LSB)
-                            				? 0x09
-                            						: 0x00;
-			writeReg(s, BQ79616_CB_CELL_CTRL_01- c,
-					timer, 1, FRMWRT_SGL_W);
+			uint8_t timer = ((cellVoltages_board[s-1][c] - vmin) > BALANCE_DELTA_LSB)? 0x09: 0x00;
+			writeReg(s, BQ79616_CB_CELL_CTRL_01- c, timer, 1, FRMWRT_SGL_W);
 		}
 
 
