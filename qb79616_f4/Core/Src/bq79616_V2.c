@@ -95,15 +95,15 @@ void Wake79600(void)
 	__HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
 
 	// Configure PA9 (UART TX) as a push-pull output.
-	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Pin = GPIO_PIN_6;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 
 
 	// Drive TX low
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
 	HAL_Delay(2); // WAKE ping = 2.5ms to 3ms
 
@@ -123,17 +123,19 @@ void Wake79600_RTOS(void)
 	__HAL_RCC_GPIOA_CLK_ENABLE();   // Make sure the clock is enabled for GPIOA
 
 	// Configure PA9 (UART TX) as a push-pull output.
-	GPIO_InitStruct.Pin = GPIO_PIN_9;
+	GPIO_InitStruct.Pin = GPIO_PIN_6;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 
 
 	// Drive TX low
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 
-	vTaskDelay(2); // WAKE ping = 2.5ms to 3ms
+	vTaskDelay(pdMS_TO_TICKS(2)); // WAKE ping = 2.5ms to 3ms
+
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 
 	// Reinitialize UART (this call should reconfigure PA9 to its alternate function)
 	HAL_UART_Init(&huart1);
