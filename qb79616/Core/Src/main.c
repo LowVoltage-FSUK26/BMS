@@ -284,12 +284,12 @@ int main(void)
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 3, &BmsChargerTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
 
 	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 #ifdef GUI
@@ -585,7 +585,7 @@ void BMS_GUI_Task(void const * argument)
 	for(;;)
 	{
 
-		Send_GUI_Reading();
+//		Send_GUI_Reading();
 
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 		vTaskDelay(500);
@@ -668,6 +668,7 @@ void BMS_MonitorTask(void const * argument)
 		}
 
 		xSemaphoreGive(UART_MUTEX);
+//		vTaskDelay(pdMS_TO_TICKS(1000));
 	}
 }
 //Receives Command in a Queue and Sends Commands to Daisy chains on demand
@@ -865,15 +866,17 @@ void BMS_CanTX_Task(void const * argument)
 	}
 
 }
+BMS_CAN_Frame_t tx_frame = {0};
 
 void BMS_ChargerTask(void const * argument)
 {
-	BMS_CAN_Frame_t tx_frame = {0};
+
 	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
 	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
 	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
 	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	int i = 0;
 	while(1)
 	{
@@ -944,132 +947,132 @@ void BMS_ChargerTask(void const * argument)
 }
 
 
-	void BMS_FaultTask(void const * argument)
+void BMS_FaultTask(void const * argument)
+{
+	while(1)
 	{
-		while(1)
-		{
-			xEventGroupWaitBits(
-					faultEventGroup,
-					FAULT_EVENT_BIT,
-					pdTRUE,
-					pdFALSE,
-					portMAX_DELAY
-			);
+		xEventGroupWaitBits(
+				faultEventGroup,
+				FAULT_EVENT_BIT,
+				pdTRUE,
+				pdFALSE,
+				portMAX_DELAY
+		);
 
-			//		Bridge_CheckFaults();
-			//		Stack_CheckFaultSummary();
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-			vTaskDelay(1000);
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-			vTaskDelay(1000);
-			Send_GUI_Reading ();
-
-		}
-
-		BMS_Request_t req;
-		req.requester = xTaskGetCurrentTaskHandle();
-		req.cmd = CMD_READ_BRIDGE_FS;
-		uint8_t cmd_res = 0;
-		//todo Make timeout and Handling to this timeout
-		xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-		for(;;)
-		{
-			xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_FS, NULL, pdMS_TO_TICKS(portMAX_DELAY));
-			//read fault_summary variable and handle it
-			vTaskDelay(pdMS_TO_TICKS(500));
-		}
-	}
-
-
-	void BMS_BalancingTask(void const * argument)
-	{
-		vTaskDelay(pdMS_TO_TICKS(5000));
-		while(1)
-		{
-			balancing_update();
-			vTaskDelay(pdMS_TO_TICKS(60000));
-		}
+		//		Bridge_CheckFaults();
+		//		Stack_CheckFaultSummary();
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+		vTaskDelay(1000);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+		vTaskDelay(1000);
+		Send_GUI_Reading ();
 
 	}
 
-	void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+	BMS_Request_t req;
+	req.requester = xTaskGetCurrentTaskHandle();
+	req.cmd = CMD_READ_BRIDGE_FS;
+	uint8_t cmd_res = 0;
+	//todo Make timeout and Handling to this timeout
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+	for(;;)
 	{
-		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
+		xTaskNotifyWait(0, NOTIFY_BMS_GOT_FS, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+		//read fault_summary variable and handle it
+		vTaskDelay(pdMS_TO_TICKS(500));
+	}
+}
 
-		//Not check on ID, As Can filter only receives charger frames
-		if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) == HAL_OK)
+
+void BMS_BalancingTask(void const * argument)
+{
+	vTaskDelay(pdMS_TO_TICKS(5000));
+	while(1)
+	{
+		balancing_update();
+		vTaskDelay(pdMS_TO_TICKS(60000));
+	}
+
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+	//Not check on ID, As Can filter only receives charger frames
+	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) == HAL_OK)
+	{
+		// Charger broadcast received
+		charger_last_rx_time = xTaskGetTickCountFromISR();
+
+		if((BMS_CAN_RxData.bytes[4] & 0b1000) == 0) //charger is ON
 		{
-			// Charger broadcast received
-			charger_last_rx_time = xTaskGetTickCountFromISR();
 
-			if((BMS_CAN_RxData.bytes[4] & 0b1000) == 0) //charger is ON
+			if((BMS_CAN_RxData.bytes[4] & 0b0111) != 0) //Fault Occurred
 			{
-
-				if((BMS_CAN_RxData.bytes[4] & 0b0111) != 0) //Fault Occurred
-				{
-					charger_fault = 1;
-				}
+				charger_fault = 1;
 			}
-
-			return; // Error
 		}
 
+		return; // Error
 	}
 
+}
 
 
-	/* USER CODE END 4 */
 
-	/**
-	 * @brief  Period elapsed callback in non blocking mode
-	 * @note   This function is called  when TIM1 interrupt took place, inside
-	 * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-	 * a global variable "uwTick" used as application time base.
-	 * @param  htim : TIM handle
-	 * @retval None
-	 */
-	void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+/* USER CODE END 4 */
+
+/**
+ * @brief  Period elapsed callback in non blocking mode
+ * @note   This function is called  when TIM1 interrupt took place, inside
+ * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+ * a global variable "uwTick" used as application time base.
+ * @param  htim : TIM handle
+ * @retval None
+ */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	/* USER CODE BEGIN Callback 0 */
+
+	/* USER CODE END Callback 0 */
+	if (htim->Instance == TIM1) {
+		HAL_IncTick();
+	}
+	/* USER CODE BEGIN Callback 1 */
+
+	/* USER CODE END Callback 1 */
+}
+
+/**
+ * @brief  This function is executed in case of error occurrence.
+ * @retval None
+ */
+void Error_Handler(void)
+{
+	/* USER CODE BEGIN Error_Handler_Debug */
+	/* User can add his own implementation to report the HAL error return state */
+	__disable_irq();
+	while (1)
 	{
-		/* USER CODE BEGIN Callback 0 */
-
-		/* USER CODE END Callback 0 */
-		if (htim->Instance == TIM1) {
-			HAL_IncTick();
-		}
-		/* USER CODE BEGIN Callback 1 */
-
-		/* USER CODE END Callback 1 */
 	}
-
-	/**
-	 * @brief  This function is executed in case of error occurrence.
-	 * @retval None
-	 */
-	void Error_Handler(void)
-	{
-		/* USER CODE BEGIN Error_Handler_Debug */
-		/* User can add his own implementation to report the HAL error return state */
-		__disable_irq();
-		while (1)
-		{
-		}
-		/* USER CODE END Error_Handler_Debug */
-	}
+	/* USER CODE END Error_Handler_Debug */
+}
 
 #ifdef  USE_FULL_ASSERT
-	/**
-	 * @brief  Reports the name of the source file and the source line number
-	 *         where the assert_param error has occurred.
-	 * @param  file: pointer to the source file name
-	 * @param  line: assert_param error line source number
-	 * @retval None
-	 */
-	void assert_failed(uint8_t *file, uint32_t line)
-	{
-		/* USER CODE BEGIN 6 */
-		/* User can add his own implementation to report the file name and line number,
+/**
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+	/* USER CODE BEGIN 6 */
+	/* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-		/* USER CODE END 6 */
-	}
+	/* USER CODE END 6 */
+}
 #endif /* USE_FULL_ASSERT */
