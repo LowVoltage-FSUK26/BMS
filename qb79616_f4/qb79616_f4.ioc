@@ -1,19 +1,15 @@
 #MicroXplorer Configuration settings - do not modify
 ADC1.Channel-0\#ChannelRegularConversion=ADC_CHANNEL_10
-ADC1.Channel-1\#ChannelInjectedConversion=ADC_CHANNEL_10
 ADC1.Channel-2\#ChannelRegularConversion=ADC_CHANNEL_11
 ADC1.ContinuousConvMode=ENABLE
 ADC1.DMAContinuousRequests=ENABLE
-ADC1.IPParameters=Rank-0\#ChannelRegularConversion,master,Channel-0\#ChannelRegularConversion,SamplingTime-0\#ChannelRegularConversion,NbrOfConversionFlag,ContinuousConvMode,InjNumberOfConversion,InjectedRank-1\#ChannelInjectedConversion,Channel-1\#ChannelInjectedConversion,SamplingTime-1\#ChannelInjectedConversion,InjectedOffset-1\#ChannelInjectedConversion,ScanConvMode,Rank-2\#ChannelRegularConversion,Channel-2\#ChannelRegularConversion,SamplingTime-2\#ChannelRegularConversion,NbrOfConversion,DMAContinuousRequests
-ADC1.InjNumberOfConversion=1
-ADC1.InjectedOffset-1\#ChannelInjectedConversion=0
-ADC1.InjectedRank-1\#ChannelInjectedConversion=1
+ADC1.IPParameters=Rank-0\#ChannelRegularConversion,master,Channel-0\#ChannelRegularConversion,SamplingTime-0\#ChannelRegularConversion,NbrOfConversionFlag,ContinuousConvMode,InjNumberOfConversion,ScanConvMode,Rank-2\#ChannelRegularConversion,Channel-2\#ChannelRegularConversion,SamplingTime-2\#ChannelRegularConversion,NbrOfConversion,DMAContinuousRequests
+ADC1.InjNumberOfConversion=0
 ADC1.NbrOfConversion=2
 ADC1.NbrOfConversionFlag=1
 ADC1.Rank-0\#ChannelRegularConversion=1
 ADC1.Rank-2\#ChannelRegularConversion=2
 ADC1.SamplingTime-0\#ChannelRegularConversion=ADC_SAMPLETIME_3CYCLES
-ADC1.SamplingTime-1\#ChannelInjectedConversion=ADC_SAMPLETIME_3CYCLES
 ADC1.SamplingTime-2\#ChannelRegularConversion=ADC_SAMPLETIME_3CYCLES
 ADC1.ScanConvMode=ENABLE
 ADC1.master=1
