@@ -269,7 +269,7 @@ int main(void)
 
 	BMS_Can_Init();
 
-//	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, 2);
+	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, 2);
 
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();
@@ -558,7 +558,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA2_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
