@@ -1121,8 +1121,6 @@ void BMS_BalancingTask(void const * argument)
  */
 void BMS_CurrentSensorTask(void const * argument)
 {
-
-	char msg[50];
 	while(1)
 	{
 
