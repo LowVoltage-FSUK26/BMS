@@ -161,9 +161,7 @@ volatile TickType_t charger_last_rx_time;
 volatile uint16_t current_buffer[2];
 uint32_t raw_adc_Vout;
 uint32_t raw_adc_Vref;
-double current_read_A1 = 0;
-double current_read_A2 = 0;
-double current_read_A3 = 0;
+double current_read;
 
 /* USER CODE END PV */
 
@@ -1121,6 +1119,8 @@ void BMS_BalancingTask(void const * argument)
  */
 void BMS_CurrentSensorTask(void const * argument)
 {
+	double Vref_V = 0;
+	double Vout_V = 0;
 	while(1)
 	{
 
@@ -1133,13 +1133,10 @@ void BMS_CurrentSensorTask(void const * argument)
 			vTaskDelay((TickType_t) 2);
 		}
 
-		current_read_A1 = ((double)((((raw_adc_Vref )/40950.0)*3.3)) * (HASS_50_S_IPN/0.625));
-		current_read_A2 = ((double)((((raw_adc_Vout )/40950.0)*3.3)) * (HASS_50_S_IPN/0.625));
-		current_read_A3=current_read_A2-current_read_A1;
-		//current_read_A3=((double)((((raw_adc_Vout-raw_adc_Vref )/4095.0)*3.3)) * (200.0/0.625));;
-		// sprintf(msg, "Current = %.3f A\r\n", current_read_A);
-		// HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-		//Delay to make function Run every 10 ms
+
+		Vref_V = (double)(((raw_adc_Vref )/40950.0)*3.3);
+		Vout_V = (double)(((raw_adc_Vout )/40950.0)*3.3);
+		current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
 		vTaskDelay((TickType_t) 20);
 
 
