@@ -4651,9 +4651,9 @@ static void MX_CAN1_Init(void)
  80025d0:	4b17      	ldr	r3, [pc, #92]	@ (8002630 <MX_CAN1_Init+0x64>)
  80025d2:	4a18      	ldr	r2, [pc, #96]	@ (8002634 <MX_CAN1_Init+0x68>)
  80025d4:	601a      	str	r2, [r3, #0]
-  hcan1.Init.Prescaler = 20;
+  hcan1.Init.Prescaler = 5;
  80025d6:	4b16      	ldr	r3, [pc, #88]	@ (8002630 <MX_CAN1_Init+0x64>)
- 80025d8:	2214      	movs	r2, #20
+ 80025d8:	2205      	movs	r2, #5
  80025da:	605a      	str	r2, [r3, #4]
   hcan1.Init.Mode = CAN_MODE_NORMAL;
  80025dc:	4b14      	ldr	r3, [pc, #80]	@ (8002630 <MX_CAN1_Init+0x64>)
@@ -5823,10 +5823,10 @@ void BMS_BalancingTask(void const * argument)
  8002d44:	00000000 	.word	0x00000000
 
 08002d48 <BMS_CurrentSensorTask>:
-//	}
-//
-//}
-
+ * @param [in]		- argument: Not Used
+ * Delay:			- This task is blocked for 10 ticks unless the event is set by the ISR.
+ * Note:			- Tick = 10 ms
+ */
 void BMS_CurrentSensorTask(void const * argument)
 {
  8002d48:	b580      	push	{r7, lr}
