@@ -158,7 +158,7 @@ volatile TickType_t charger_last_rx_time;
 //------------------------
 //    Current Sensor Variables
 //-----------------------
-volatile uint16_t current_buffer[2];
+volatile uint16_t current_buffer[NUM_SAMPLES * NUM_CHANNELS];
 uint32_t raw_adc_Vout;
 uint32_t raw_adc_Vref;
 double current_read;
@@ -407,7 +407,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ENABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -1117,33 +1117,66 @@ void BMS_BalancingTask(void const * argument)
  * Delay:			- This task is blocked for 10 ticks unless the event is set by the ISR.
  * Note:			- Tick = 10 ms
  */
+//void BMS_CurrentSensorTask(void const * argument)
+//{
+//	double Vref_V = 0;
+//	double Vout_V = 0;
+//	while(1)
+//	{
+//
+//		raw_adc_Vout=0;
+//		raw_adc_Vref=0;
+//		for(int i = 0; i < 10; i++)
+//		{
+//			raw_adc_Vref += current_buffer[0];
+//			raw_adc_Vout += current_buffer[1];
+//			vTaskDelay((TickType_t) 2);
+//		}
+//
+//
+//		Vref_V = (double)(((raw_adc_Vref )/40950.0)*3.3);
+//		Vout_V = (double)(((raw_adc_Vout )/40950.0)*3.3);
+//		current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
+//		vTaskDelay((TickType_t) 20);
+//
+//
+//	}
+//
+//}
+
 void BMS_CurrentSensorTask(void const * argument)
 {
-	double Vref_V = 0;
-	double Vout_V = 0;
-	while(1)
-	{
+    double Vref_V = 0;
+    double Vout_V = 0;
 
-		raw_adc_Vout=0;
-		raw_adc_Vref=0;
-		for(int i = 0; i < 10; i++)
-		{
-			raw_adc_Vref += current_buffer[0];
-			raw_adc_Vout += current_buffer[1];
-			vTaskDelay((TickType_t) 2);
-		}
+    while(1)
+    {
+        // 1. Tell hardware to collect exactly 10 pairs of samples in the background
+        HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, NUM_SAMPLES * NUM_CHANNELS);
 
+        // 2. Sleep indefinitely until the DMA interrupt signals us it is done
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-		Vref_V = (double)(((raw_adc_Vref )/40950.0)*3.3);
-		Vout_V = (double)(((raw_adc_Vout )/40950.0)*3.3);
-		current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
-		vTaskDelay((TickType_t) 20);
+        // 3. Hardware has finished! Processing phase
+        raw_adc_Vref = 0;
+        raw_adc_Vout = 0;
 
+        // The DMA fills the array like this: [Vref0, Vout0, Vref1, Vout1...]
+        for(uint8_t i = 0; i < (NUM_SAMPLES * NUM_CHANNELS); i += 2)
+        {
+            raw_adc_Vref += current_buffer[i];
+            raw_adc_Vout += current_buffer[i+1];
+        }
 
-	}
+        // 4. Calculate final values
+        Vref_V = (double)(((raw_adc_Vref )/40950.0)*3.3);
+        Vout_V = (double)(((raw_adc_Vout )/40950.0)*3.3);
+        current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
 
+        // 5. Rest for 20ms before starting the next batch
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
 }
-
 
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
@@ -1167,6 +1200,18 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 		return; // Error
 	}
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+    if (hadc->Instance == ADC1) {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+        // Unblock the Current Sensor Task
+        vTaskNotifyGiveFromISR(BmsCurrentSensorTaskHandle, &xHigherPriorityTaskWoken);
+
+        // Context switch if needed
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
 }
 
 
