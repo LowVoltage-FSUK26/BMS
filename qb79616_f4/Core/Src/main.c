@@ -269,7 +269,7 @@ int main(void)
 
 	BMS_Can_Init();
 
-	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, 2);
+//	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, 2);
 
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();
@@ -407,7 +407,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ENABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
@@ -558,7 +558,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA2_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
@@ -1117,37 +1117,11 @@ void BMS_BalancingTask(void const * argument)
  * Delay:			- This task is blocked for 10 ticks unless the event is set by the ISR.
  * Note:			- Tick = 10 ms
  */
-//void BMS_CurrentSensorTask(void const * argument)
-//{
-//	double Vref_V = 0;
-//	double Vout_V = 0;
-//	while(1)
-//	{
-//
-//		raw_adc_Vout=0;
-//		raw_adc_Vref=0;
-//		for(int i = 0; i < 10; i++)
-//		{
-//			raw_adc_Vref += current_buffer[0];
-//			raw_adc_Vout += current_buffer[1];
-//			vTaskDelay((TickType_t) 2);
-//		}
-//
-//
-//		Vref_V = (double)(((raw_adc_Vref )/40950.0)*3.3);
-//		Vout_V = (double)(((raw_adc_Vout )/40950.0)*3.3);
-//		current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
-//		vTaskDelay((TickType_t) 20);
-//
-//
-//	}
-//
-//}
-
 void BMS_CurrentSensorTask(void const * argument)
 {
     double Vref_V = 0;
     double Vout_V = 0;
+
 
     while(1)
     {
@@ -1174,7 +1148,7 @@ void BMS_CurrentSensorTask(void const * argument)
         current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
 
         // 5. Rest for 20ms before starting the next batch
-        vTaskDelay(pdMS_TO_TICKS(20));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -1202,8 +1176,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	}
 }
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
-    if (hadc->Instance == ADC1) {
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
+    if (hadc1->Instance == ADC1) {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
         // Unblock the Current Sensor Task
