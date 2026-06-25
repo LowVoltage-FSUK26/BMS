@@ -76,6 +76,14 @@
 #define CHAR_START				0
 #define CHAR_STOP				1
 
+/* ------------------------------------
+     Current Sensor MACROS
+   ------------------------------------
+*/
+#define HASS_50_S_Vof 	2.5
+#define HASS_50_S_IPN  	50
+#define NUM_SAMPLES 	10
+#define NUM_CHANNELS 	2
 
 /* ------------------------------------
      BMS Frame Structs

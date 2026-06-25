@@ -56,6 +56,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
+
 CAN_HandleTypeDef hcan1;
 
 UART_HandleTypeDef huart4;
@@ -90,6 +93,7 @@ TaskHandle_t BmsFaultTaskHandle;
 TaskHandle_t BmsBalancingTaskHandle;
 TaskHandle_t BmsGUITaskHandle;
 TaskHandle_t BmsChargerTaskHandle;
+TaskHandle_t BmsCurrentSensorTaskHandle;
 
 //----------------
 //RTOS EVENTGroup Bits
@@ -151,14 +155,24 @@ volatile uint8_t charger_fault = 0;
 volatile TickType_t charger_last_rx_time;
 
 
+//------------------------
+//    Current Sensor Variables
+//-----------------------
+volatile uint16_t current_buffer[NUM_SAMPLES * NUM_CHANNELS];
+uint32_t raw_adc_Vout;
+uint32_t raw_adc_Vref;
+double current_read;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_CAN1_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 
 //Declare Tasks Entery point
@@ -186,6 +200,7 @@ void BMS_ChargerTask(void const * argument);
 
 void BMS_GUI_Task(void const * argument);
 
+void BMS_CurrentSensorTask(void const * argument);
 
 
 /* USER CODE END PFP */
@@ -245,13 +260,16 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_UART4_Init();
   MX_CAN1_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
-		BMS_Can_Init();
+	BMS_Can_Init();
 
+//	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, 2);
 
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();
@@ -280,13 +298,14 @@ int main(void)
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	//xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 	//xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
 
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
@@ -362,6 +381,67 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_10;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_11;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -464,6 +544,22 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
 
@@ -1013,6 +1109,50 @@ void BMS_BalancingTask(void const * argument)
 }
 
 
+/**================================================================
+ * @Fn				- CurrentSensorTask
+ * @breif			- Function implementing the CurrentSensor_Task thread
+ * 					- Current estimation Using ADC1
+ * @param [in]		- argument: Not Used
+ * Delay:			- This task is blocked for 10 ticks unless the event is set by the ISR.
+ * Note:			- Tick = 10 ms
+ */
+void BMS_CurrentSensorTask(void const * argument)
+{
+    double Vref_V = 0;
+    double Vout_V = 0;
+
+
+    while(1)
+    {
+        // 1. Tell hardware to collect exactly 10 pairs of samples in the background
+        HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, NUM_SAMPLES * NUM_CHANNELS);
+
+        // 2. Sleep indefinitely until the DMA interrupt signals us it is done
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        // 3. Hardware has finished! Processing phase
+        raw_adc_Vref = 0;
+        raw_adc_Vout = 0;
+
+        // The DMA fills the array like this: [Vref0, Vout0, Vref1, Vout1...]
+        for(uint8_t i = 0; i < (NUM_SAMPLES * NUM_CHANNELS); i += 2)
+        {
+            raw_adc_Vref += current_buffer[i];
+            raw_adc_Vout += current_buffer[i+1];
+        }
+
+        // 4. Calculate final values
+        Vref_V = (double)(((raw_adc_Vref )/40950.0)*3.3);
+        Vout_V = (double)(((raw_adc_Vout )/40950.0)*3.3);
+        current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
+
+        // 5. Rest for 20ms before starting the next batch
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
 	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -1034,6 +1174,18 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 		return; // Error
 	}
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
+    if (hadc1->Instance == ADC1) {
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+        // Unblock the Current Sensor Task
+        vTaskNotifyGiveFromISR(BmsCurrentSensorTaskHandle, &xHigherPriorityTaskWoken);
+
+        // Context switch if needed
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
 }
 
 
