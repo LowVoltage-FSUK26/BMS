@@ -347,7 +347,7 @@ void Stack_CheckFaultSummary(void)
 //nfault interrupt handling
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 {
-	if(GPIO_PIN== GPIO_PIN_8)
+	if(GPIO_PIN== GPIO_PIN_10)
 	{
 
 		BaseType_t xHigherPriorityTaskWoken = pdFALSE;

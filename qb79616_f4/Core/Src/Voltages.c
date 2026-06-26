@@ -11,6 +11,19 @@
 #include "BMS_Config.h"
 #include "Voltages.h"
 uint16_t cellVoltages_board[SLAVEBOARDS][16] = {0};
+
+
+// BMS_Config.c
+uint8_t slaveCellCount[SLAVEBOARDS] = {16,16 };
+void initSlaveCellCount(void) {
+    for (uint8_t s = 0; s < SLAVEBOARDS; s++) {
+        if (s % 2 == 0) {
+            slaveCellCount[s] = 14;  // even index = 14 cells
+        } else {
+            slaveCellCount[s] = 13;  // odd index  = 13 cells
+        }
+    }
+}
 uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 
 	uint8_t dev_stat;
@@ -103,7 +116,7 @@ uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, uint1
 
 	for (uint8_t cell = 1; cell <= numCells; cell++) {
 		uint16_t hiRegAddr = BQ79616_CELL_VOLTAGE_BASE + ((16 - cell) * 2);
-		uint16_t loRegAddr = hiRegAddr + 1;
+
 
 		// Read two registers at once
 		if (readReg(boardNum, hiRegAddr, full_cell_voltage, 2, 200, FRMWRT_SGL_R) < 1) {
@@ -119,4 +132,16 @@ uint8_t readBoardVoltages(uint8_t boardNum, uint8_t numCells, int *totalV, uint1
 
 	return (*totalV == 0) ? 0 : 1;
 }
+uint8_t readAllBoardVoltages(void) {
 
+    uint8_t status = 1;
+    int totalV;
+
+    for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
+        if (!readBoardVoltages(s, slaveCellCount[s-1], &totalV, cellVoltages_board[s-1])) {
+            status = 0;
+        }
+    }
+
+    return status;
+}
