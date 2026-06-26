@@ -20,7 +20,7 @@ typedef struct {
 
 extern uint16_t GpioReadings[SLAVEBOARDS][NUM_GPIOS];
 extern uint16_t TsrefReadings[SLAVEBOARDS];
-
+extern float temperatures[SLAVEBOARDS][NUM_GPIOS];
 uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors);
 uint8_t configureGPIO(uint8_t GPIO_NUM, BQ79616_GPIO_Config_t GPIOMODE ,uint8_t BID, uint8_t bWriteType);
 uint16_t readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr);

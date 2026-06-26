@@ -10,7 +10,7 @@
 #include "BMS_Config.h"
 #include "Voltages.h"
 #include "Balancing.h"
-
+uint8_t BalStatReadings[SLAVEBOARDS] ;
 /* ─────────────────────────────────────────────
    Helper: Find global Vmin across all slaves
 ───────────────────────────────────────────── */
@@ -127,4 +127,11 @@ void balancing_update(void) {
 
 		last_CB_THR[s-1] = new_CB_THR;
 	}
+}
+
+
+void readBAL_STAT(void) {
+    for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
+        readReg(s, BAL_STAT, &BalStatReadings[s-1], 1, 200, FRMWRT_SGL_R);
+    }
 }
