@@ -121,6 +121,7 @@ QueueHandle_t bmsTempQueue;
 #ifdef EVENT_GROUP
 SemaphoreHandle_t UART_MUTEX;
 #endif
+
 SemaphoreHandle_t CAN_MUTEX;
 
 //Private user Variables
@@ -283,7 +284,7 @@ int main(void)
 	faultEventGroup = xEventGroupCreate();
 	//==================Define Queues===================//
 
-	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
+//	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	//	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
 	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 3, sizeof(BMS_Queue_Measurement_t));
 	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
@@ -297,15 +298,15 @@ int main(void)
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-	//xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 128, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 26, NULL,(UBaseType_t) 3, &BmsChargerTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
 
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
@@ -346,12 +347,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 4;
   RCC_OscInitStruct.PLL.PLLN = 180;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 2;
@@ -460,7 +460,7 @@ static void MX_CAN1_Init(void)
 
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 5;
+  hcan1.Init.Prescaler = 20;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan1.Init.TimeSeg1 = CAN_BS1_14TQ;
@@ -979,7 +979,8 @@ void BMS_ChargerTask(void const * argument)
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
 	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
 	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+//	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+
 	int i = 0;
 	while(1)
 	{
@@ -995,7 +996,7 @@ void BMS_ChargerTask(void const * argument)
 		while(1)
 		{
 
-			//Check charger communication timeout
+//			Check charger communication timeout
 			if((xTaskGetTickCount() - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
 				charger_fault = 1;
@@ -1014,15 +1015,14 @@ void BMS_ChargerTask(void const * argument)
 				tx_frame.bytes[4] = CHAR_STOP;
 
 				//send stop frame
-				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+//				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
 				if( HAL_CAN_AddTxMessage(&hcan1, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
 				{
 					//error
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 				}
-				xSemaphoreGive(CAN_MUTEX);
-				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
-
+//				xSemaphoreGive(CAN_MUTEX);//
+				vTaskDelay(10);
 				break;
 			}
 			else
@@ -1032,14 +1032,14 @@ void BMS_ChargerTask(void const * argument)
 				tx_frame.bytes[2] = CHAR_MAX_AMP_High;
 				tx_frame.bytes[3] = CHAR_MAX_AMP_low;
 				tx_frame.bytes[4] = CHAR_START;
-				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+//				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
 				if( HAL_CAN_AddTxMessage(&hcan1, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
 				{
 					//error
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 				}
-				xSemaphoreGive(CAN_MUTEX);
-				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
+//				xSemaphoreGive(CAN_MUTEX);
+				vTaskDelay(10);
 			}
 
 			vTaskDelay(pdMS_TO_TICKS(1000));

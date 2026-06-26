@@ -31,4 +31,5 @@ void BMS_Can_Init(void)
                Error_Handler();
        }
 
+
 }
