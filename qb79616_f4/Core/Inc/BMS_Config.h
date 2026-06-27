@@ -24,7 +24,7 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 		2       //boards in stack (including the bridge)
+#define TOTALBOARDS 		1       //boards in stack (including the bridge)
 #define SLAVEBOARDS			(TOTALBOARDS - 1)
 #define ACTIVE_CELLS		16
 #define Thermistor_GPIO 	2
@@ -63,12 +63,12 @@
      CAN Charger MACROS
    ------------------------------------
 */
-#define CHAR_MAX_VOLT			6500		//0.1V/byte  offset:0  e.g. Vset=3201, its corresponding 320.1V
+#define CHAR_MAX_VOLT			1700		//0.1V/byte  offset:0  e.g. Vset=3201, its corresponding 320.1V
 #define CHAR_MAX_VOLT_High		((CHAR_MAX_VOLT & 0xFF00) >> 8)
 #define CHAR_MAX_VOLT_low		(CHAR_MAX_VOLT & 0x00FF)
 
 
-#define CHAR_MAX_AMP			100		//0.1A/byte  offset:0  e.g. Iset=582, its corresponding 58.2A
+#define CHAR_MAX_AMP			10		//0.1A/byte  offset:0  e.g. Iset=582, its corresponding 58.2A
 #define CHAR_MAX_AMP_High		((CHAR_MAX_AMP & 0xFF00) >> 8)
 #define CHAR_MAX_AMP_low		(CHAR_MAX_AMP & 0x00FF)
 
@@ -156,8 +156,9 @@ typedef enum
 
 typedef struct
 {
+	int16_t value;
     uint8_t slave_id;
-    int16_t value;
+    uint8_t  _pad;
 
 } BMS_Queue_Measurement_t;
 

@@ -270,8 +270,6 @@ int main(void)
 
 	BMS_Can_Init();
 
-//	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, 2);
-
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();
 	if (BMS_EventGroup == NULL)
@@ -284,9 +282,8 @@ int main(void)
 	faultEventGroup = xEventGroupCreate();
 	//==================Define Queues===================//
 
-//	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	//	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
-	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 3, sizeof(BMS_Queue_Measurement_t));
+	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
 	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
 	bmsCanTXQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
 
@@ -297,16 +294,16 @@ int main(void)
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 256, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 //	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 128, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 26, NULL,(UBaseType_t) 3, &BmsChargerTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 256, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 256, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 256, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 256, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 256, NULL,(UBaseType_t) 3, &BmsChargerTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
 
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
@@ -460,7 +457,7 @@ static void MX_CAN1_Init(void)
 
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 20;
+  hcan1.Init.Prescaler = 10;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan1.Init.TimeSeg1 = CAN_BS1_14TQ;
@@ -735,6 +732,7 @@ void BMS_MonitorTask(void const * argument)
 				buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
 				xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 				//				xQueueSendToBack(bmsMeasurmentsQueue, &buffer, (TickType_t)10);
+				vTaskDelay(pdMS_TO_TICKS(5));
 				xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 			}
 
@@ -850,7 +848,7 @@ void BMS_CellVoltageTask(void const * argument)
 		else
 		{
 			//todo Optimize wait delay to be dynamic to the number of slaves
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, portMAX_DELAY);
 		}
 
 	}
@@ -914,7 +912,7 @@ void BMS_ReadTempTask(void const * argument)
 		{
 			//indicate message is not received
 			//todo Optimize wait delay to be dynamic to the number of slaves
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+			xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, portMAX_DELAY);
 		}
 
 	}
@@ -968,12 +966,12 @@ void BMS_CanTX_Task(void const * argument)
 	}
 
 }
-
+BMS_CAN_Frame_t tx_frame = {0};
 
 void BMS_ChargerTask(void const * argument)
 {
 
-	BMS_CAN_Frame_t tx_frame = {0};
+
 	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
 	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
@@ -1015,13 +1013,13 @@ void BMS_ChargerTask(void const * argument)
 				tx_frame.bytes[4] = CHAR_STOP;
 
 				//send stop frame
-//				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
 				if( HAL_CAN_AddTxMessage(&hcan1, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
 				{
 					//error
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 				}
-//				xSemaphoreGive(CAN_MUTEX);//
+				xSemaphoreGive(CAN_MUTEX);//
 				vTaskDelay(10);
 				break;
 			}
@@ -1032,13 +1030,13 @@ void BMS_ChargerTask(void const * argument)
 				tx_frame.bytes[2] = CHAR_MAX_AMP_High;
 				tx_frame.bytes[3] = CHAR_MAX_AMP_low;
 				tx_frame.bytes[4] = CHAR_START;
-//				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
+				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
 				if( HAL_CAN_AddTxMessage(&hcan1, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
 				{
 					//error
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 				}
-//				xSemaphoreGive(CAN_MUTEX);
+				xSemaphoreGive(CAN_MUTEX);
 				vTaskDelay(10);
 			}
 
