@@ -35,6 +35,9 @@
 #define VOLT_CONV		0.00019073
 #define GUI
 
+#define MAX(a, b)  ((a) > (b) ? (a) : (b))
+
+
 
 //---------------
 //	Topology

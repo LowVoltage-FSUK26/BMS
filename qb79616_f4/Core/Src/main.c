@@ -282,9 +282,9 @@ int main(void)
 	faultEventGroup = xEventGroupCreate();
 	//==================Define Queues===================//
 
-	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	bmsVoltageQueue = xQueueCreate(MAX(1, SLAVEBOARDS * 7), sizeof(BMS_Queue_Measurement_t));
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	bmsTempQueue = xQueueCreate(MAX(1, SLAVEBOARDS * 7), sizeof(BMS_Queue_Measurement_t));
 	bmsCanTXQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
 
 
