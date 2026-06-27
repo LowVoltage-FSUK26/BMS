@@ -6,14 +6,18 @@ extern CAN_HandleTypeDef hcan1;
 void BMS_Can_Init(void)
 {
        CAN_FilterTypeDef canFilterConfig;
+       uint32_t filter_id   = (CAN_CH_TO_BMS << 3) | (1 << 2);  // Extended ID + IDE bit
+       	uint32_t filter_mask = (0x1FFFFFFF << 3) | (1 << 2);  // Match all 29 ID bits + IDE
+
        canFilterConfig.FilterBank = 0;
        canFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
        canFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-       canFilterConfig.FilterIdHigh = 0x0000;
-       canFilterConfig.FilterIdLow = 0x0000;
+       canFilterConfig.FilterIdHigh = (filter_id >> 16) & 0xFFFF;
+       canFilterConfig.FilterIdLow  = filter_id & 0xFFFF;
        //Accept All IDs
-       canFilterConfig.FilterMaskIdHigh = 0x0000;
-       canFilterConfig.FilterMaskIdLow = 0x0000;
+       canFilterConfig.FilterMaskIdHigh = (filter_mask >> 16) & 0xFFFF;
+       canFilterConfig.FilterMaskIdLow  = filter_mask & 0xFFFF;
+
        canFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
        canFilterConfig.FilterActivation = ENABLE;
        canFilterConfig.SlaveStartFilterBank = 14;
