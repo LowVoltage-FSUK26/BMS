@@ -15,7 +15,7 @@
 #include "Faults.h"
 
 EventGroupHandle_t faultEventGroup;
-
+extern TaskHandle_t BmsChargerTaskHandle;
 
 void Bridge_FaultInit(void)
 {
@@ -290,10 +290,10 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 	/*************** OV / UV ***************/
 	if(slaveFaultSummary & SLAVE_FLT_OVUV)
 	{
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-//		vTaskDelay(5000);
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-//		vTaskDelay(5000);
+		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+		//		vTaskDelay(5000);
+		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+		//		vTaskDelay(5000);
 
 		// Read FAULT_OV1/2 + FAULT_UV1/2
 	}
@@ -342,8 +342,6 @@ void Stack_CheckFaultSummary(void)
 
 
 
-
-
 //nfault interrupt handling
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 {
@@ -360,6 +358,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 
 		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 
+	}
+	else if(GPIO_PIN == GPIO_PIN_5)   // PA5 -> EXTI5
+	{
+		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+		vTaskNotifyGiveFromISR(
+				BmsChargerTaskHandle,
+				&xHigherPriorityTaskWoken
+		);
+
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
 }
 
