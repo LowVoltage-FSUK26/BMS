@@ -294,7 +294,7 @@ int main(void)
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 256, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 256, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 256, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
@@ -981,7 +981,7 @@ BMS_CAN_Frame_t tx_frame = {0};
 void BMS_ChargerTask(void const * argument)
 {
 
-
+	TickType_t current_tick = 0;
 	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
 	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
@@ -991,7 +991,7 @@ void BMS_ChargerTask(void const * argument)
 
 	while(1)
 	{
-
+		charger_fault = 0;
 		// Wait until interrupt occurs
 		ulTaskNotifyTake(
 			pdTRUE,        // Clear notification value before returning
@@ -1001,7 +1001,8 @@ void BMS_ChargerTask(void const * argument)
 		{
 
 //			Check charger communication timeout
-			if((xTaskGetTickCount() - charger_last_rx_time) > pdMS_TO_TICKS(5000))
+			current_tick = xTaskGetTickCount();
+			if((current_tick - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
 				charger_fault = 1;
 			}
@@ -1172,7 +1173,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 			if((BMS_CAN_RxData.bytes[4] & 0b0111) != 0) //Fault Occurred
 			{
-//				charger_fault = 1;
+				charger_fault = 1;
 			}
 		}
 
