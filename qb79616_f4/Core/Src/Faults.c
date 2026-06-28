@@ -340,7 +340,7 @@ void Stack_CheckFaultSummary(void)
 	}
 }
 
-
+TickType_t last_exti = 0;
 
 //nfault interrupt handling
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
@@ -362,12 +362,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 	else if(GPIO_PIN == GPIO_PIN_5)   // PA5 -> EXTI5
 	{
 		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-		vTaskNotifyGiveFromISR(
-				BmsChargerTaskHandle,
-				&xHigherPriorityTaskWoken
-		);
+		if((xTaskGetTickCountFromISR() - last_exti) > pdMS_TO_TICKS(100))
+		{
+			vTaskNotifyGiveFromISR(
+							BmsChargerTaskHandle,
+							&xHigherPriorityTaskWoken
+					);
 
-		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+					portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+					last_exti = xTaskGetTickCountFromISR();
+		}
+
 	}
 }
 
