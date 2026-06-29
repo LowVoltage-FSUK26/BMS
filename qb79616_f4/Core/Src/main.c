@@ -303,7 +303,7 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
+	//xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 	//xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
 	//xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
 
@@ -647,7 +647,7 @@ void BMS_Init(void const * argument)
 	for(uint8_t i = 1; i < TOTALBOARDS; i++)
 	{
 
-		if(configure_OVUV(i, 16) != 1)
+		if(configure_OVUV(i, 14) != 1)
 		{
 			//error
 			while(1);
@@ -719,6 +719,11 @@ void BMS_MonitorTask(void const * argument)
 
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);////////////////////////////////
 		readAllBoardVoltages();
+		convertVoltages();
+
+		readBAL_STAT();
+
+
 
 		//Fetching the Voltage Value of Each Slave
 		int raw_battary_voltage = 0;
@@ -1092,10 +1097,11 @@ void BMS_BalancingTask(void const * argument)
 {
 	// waits for BMS_Init to finish
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-
+	//vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));
 	// one-time setup
 	xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 	balancing_init();
+	balancing_update();
 	xSemaphoreGive(UART_MUTEX);
 
 	for (;;)

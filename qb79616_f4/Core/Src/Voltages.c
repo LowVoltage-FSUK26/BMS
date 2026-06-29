@@ -11,8 +11,7 @@
 #include "BMS_Config.h"
 #include "Voltages.h"
 uint16_t cellVoltages_board[SLAVEBOARDS][16] = {0};
-
-
+float cellVoltages_board_float[SLAVEBOARDS][16];
 // BMS_Config.c
 uint8_t slaveCellCount[SLAVEBOARDS] = {16,16 };
 void initSlaveCellCount(void) {
@@ -144,4 +143,9 @@ uint8_t readAllBoardVoltages(void) {
     }
 
     return status;
+}
+void convertVoltages(void) {
+    for (uint8_t s = 0; s < SLAVEBOARDS; s++)
+        for (uint8_t c = 0; c < 16; c++)
+            cellVoltages_board_float[s][c] = cellVoltages_board[s][c] * 0.00019073f;
 }

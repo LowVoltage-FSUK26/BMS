@@ -10,7 +10,8 @@
 #include "BMS_Config.h"
 #include "Voltages.h"
 #include "Balancing.h"
-uint8_t BalStatReadings[SLAVEBOARDS] ;
+BAL_STAT_t BalStatReadings[SLAVEBOARDS];
+uint16_t CB_CompleteReadings[SLAVEBOARDS];
 /* ─────────────────────────────────────────────
    Helper: Find global Vmin across all slaves
 ───────────────────────────────────────────── */
@@ -60,13 +61,13 @@ void balancing_init(void) {
 		// writeReg(s, BQ79616_OTCB_THRESH, 0x0F, 1, FRMWRT_SGL_W);
 
 		// 3. VCB_DONE_THRESH = 0 for now (will be set in update loop)
-		writeReg(s, BQ79616_VCB_DONE_THRESH, 0x00, 1, FRMWRT_SGL_W);
+		writeReg(s, BQ79616_VCB_DONE_THRESH, 0x01, 1, FRMWRT_SGL_W);
 
 		// 4. Start UV protector — required for VCB_DONE detection
 		writeReg(s, BQ79616_OVUV_CTRL, 0x05, 1, FRMWRT_SGL_W);
 
 		// 5. Start balancing
-		writeReg(s, BQ79616_BAL_CTRL2, BAL_CTRL2_STOP, 1, FRMWRT_SGL_W);
+		writeReg(s, BQ79616_BAL_CTRL2, BAL_CTRL2_RUN, 1, FRMWRT_SGL_W);
 	}
 }
 static uint8_t last_CB_THR[SLAVEBOARDS] = {0};
@@ -83,12 +84,11 @@ void balancing_update(void) {
 
 		for (uint8_t c = 0; c < NUM_CELLS; c++) {
 			writeReg(0, BQ79616_CB_CELL_CTRL_01- c, 0x00, 1, FRMWRT_STK_W);
-		}
 
-		for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
-			writeReg(s, BQ79616_BAL_CTRL2, BAL_CTRL2_STOP, 1, FRMWRT_SGL_W);
 		}
-		// or writeReg(0, BQ79616_BAL_CTRL2, BAL_CTRL2_STOP, 1, FRMWRT_STK_W);
+		writeReg(0, BQ79616_BAL_CTRL2, BAL_CTRL2_RUN, 1, FRMWRT_STK_W);
+
+		// or Vth>Vcell -->go
 		return;
 	}
 
@@ -131,7 +131,29 @@ void balancing_update(void) {
 
 
 void readBAL_STAT(void) {
-    for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
-        readReg(s, BAL_STAT, &BalStatReadings[s-1], 1, 200, FRMWRT_SGL_R);
-    }
+	uint8_t raw;
+	uint8_t raw1, raw2;
+	for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
+		readReg(s, BAL_STAT, &raw, 1, 200, FRMWRT_SGL_R);
+		BalStatReadings[s-1] = parse_BAL_STAT(raw);
+		readReg(s, CB_COMPLETE1, &raw1, 1, 200, FRMWRT_SGL_R);
+		readReg(s, CB_COMPLETE2, &raw2, 1, 200, FRMWRT_SGL_R);
+
+		// raw2 = cells 1-8  → bits 0-7
+				// raw1 = cells 9-16 → bits 8-15
+		CB_CompleteReadings[s-1] = ((uint16_t)raw1 << 8) | raw2;
+	}
+}
+BAL_STAT_t parse_BAL_STAT(uint8_t raw)
+{
+	BAL_STAT_t stat;
+	stat.cb_done       = (raw >> 0) & 0x01;
+	stat.mb_done       = (raw >> 1) & 0x01;
+	stat.abortflt      = (raw >> 2) & 0x01;
+	stat.cb_run        = (raw >> 3) & 0x01;
+	stat.mb_run        = (raw >> 4) & 0x01;
+	stat.cb_inpause    = (raw >> 5) & 0x01;
+	stat.ot_pause_det  = (raw >> 6) & 0x01;
+	stat.invalid_cbconf= (raw >> 7) & 0x01;
+	return stat;
 }
