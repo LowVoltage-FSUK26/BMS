@@ -121,6 +121,7 @@ QueueHandle_t bmsTempQueue;
 #ifdef EVENT_GROUP
 SemaphoreHandle_t UART_MUTEX;
 #endif
+
 SemaphoreHandle_t CAN_MUTEX;
 
 //Private user Variables
@@ -269,8 +270,6 @@ int main(void)
 
 	BMS_Can_Init();
 
-	//	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)current_buffer, 2);
-
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();
 	if (BMS_EventGroup == NULL)
@@ -283,10 +282,9 @@ int main(void)
 	faultEventGroup = xEventGroupCreate();
 	//==================Define Queues===================//
 
+	bmsVoltageQueue = xQueueCreate(MAX(1, SLAVEBOARDS * 7), sizeof(BMS_Queue_Measurement_t));
 	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	//	bmsMeasurmentsQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
-	bmsVoltageQueue = xQueueCreate(SLAVEBOARDS * 3, sizeof(BMS_Queue_Measurement_t));
-	bmsTempQueue = xQueueCreate(SLAVEBOARDS * 7, sizeof(BMS_Queue_Measurement_t));
+	bmsTempQueue = xQueueCreate(MAX(1, SLAVEBOARDS * 7), sizeof(BMS_Queue_Measurement_t));
 	bmsCanTXQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
 
 
@@ -346,12 +344,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 4;
   RCC_OscInitStruct.PLL.PLLN = 180;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 2;
@@ -862,7 +859,7 @@ void BMS_CellVoltageTask(void const * argument)
 		else
 		{
 			//todo Optimize wait delay to be dynamic to the number of slaves
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, portMAX_DELAY);
 		}
 
 	}
@@ -926,7 +923,7 @@ void BMS_ReadTempTask(void const * argument)
 		{
 			//indicate message is not received
 			//todo Optimize wait delay to be dynamic to the number of slaves
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
+			xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, portMAX_DELAY);
 		}
 
 	}
@@ -980,35 +977,34 @@ void BMS_CanTX_Task(void const * argument)
 	}
 
 }
-
+BMS_CAN_Frame_t tx_frame = {0};
 
 void BMS_ChargerTask(void const * argument)
 {
 
-	BMS_CAN_Frame_t tx_frame = {0};
+	TickType_t current_tick = 0;
 	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
 	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
 	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
 	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-	int i = 0;
+//	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+
 	while(1)
 	{
-
-		//todo Wait for EXTI or current sensor outputs zero
-		while(i != 0)
-		{
-
-		}
 		charger_fault = 0;
-		i++;
-
+		// Wait until interrupt occurs
+		ulTaskNotifyTake(
+			pdTRUE,        // Clear notification value before returning
+			portMAX_DELAY  // Block forever
+		);
+		charger_last_rx_time = xTaskGetTickCount();
 		while(1)
 		{
 
-			//Check charger communication timeout
-			if((xTaskGetTickCount() - charger_last_rx_time) > pdMS_TO_TICKS(5000))
+//			Check charger communication timeout
+			current_tick = xTaskGetTickCount();
+			if((current_tick - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
 				charger_fault = 1;
 			}
@@ -1032,9 +1028,8 @@ void BMS_ChargerTask(void const * argument)
 					//error
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 				}
-				xSemaphoreGive(CAN_MUTEX);
-				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
-
+				xSemaphoreGive(CAN_MUTEX);//
+				vTaskDelay(10);
 				break;
 			}
 			else
@@ -1051,7 +1046,7 @@ void BMS_ChargerTask(void const * argument)
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
 				}
 				xSemaphoreGive(CAN_MUTEX);
-				vTaskDelay(pdMS_TO_TICKS(10)); //delay for can task to take mutex
+				vTaskDelay(10);
 			}
 
 			vTaskDelay(pdMS_TO_TICKS(1000));
@@ -1202,6 +1197,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc1) {
 		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
 }
+
 
 
 
