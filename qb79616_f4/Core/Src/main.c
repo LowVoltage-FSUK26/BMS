@@ -997,6 +997,7 @@ void BMS_ChargerTask(void const * argument)
 			pdTRUE,        // Clear notification value before returning
 			portMAX_DELAY  // Block forever
 		);
+		charger_last_rx_time = xTaskGetTickCount();
 		while(1)
 		{
 
