@@ -301,9 +301,9 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
 
 #ifdef GUI
 	xTaskCreate((TaskFunction_t) BMS_GUI_Task, "BMS_GUITask", 128, NULL,(UBaseType_t) 2, &BmsGUITaskHandle);
