@@ -24,7 +24,7 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 		2      //boards in stack (including the bridge)
+#define TOTALBOARDS 		1      //boards in stack (including the bridge)
 #define SLAVEBOARDS			(TOTALBOARDS - 1)
 #define ACTIVE_CELLS		16
 #define Thermistor_GPIO 	2
