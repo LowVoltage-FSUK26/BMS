@@ -294,7 +294,7 @@ int main(void)
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 256, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 256, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 256, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
