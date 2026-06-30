@@ -269,7 +269,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
 	BMS_Can_Init();
-
+	initSlaveCellCount();
 	//==================Define EventGroups===================//
 	BMS_EventGroup = xEventGroupCreate();
 	if (BMS_EventGroup == NULL)
@@ -300,8 +300,8 @@ int main(void)
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
+	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 128, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
+	//	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
 
@@ -599,7 +599,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : PB10 */
   GPIO_InitStruct.Pin = GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PA12 */
@@ -612,6 +612,9 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -645,42 +648,12 @@ void BMS_Init(void const * argument)
 	init_done = 1;
 #endif
 
-	//todo make it a for loop on the number of slaves
-	for(uint8_t i = 1; i < TOTALBOARDS; i++)
-	{
 
-		if(configure_OVUV(i, 14) != 1)
-		{
-			//error
-			while(1);
-		}
-		if(configure_OTUT(i, 0) != 1)
-		{
-			//error
-			while(1);
-		}
-	}
 
-	Bridge_FaultInit();
-	Stack_FaultInit();
-	writeReg(0, Bridge_DEV_CONF1, 0x14, 1, FRMWRT_SGL_W);
+	//	writeReg(0, Bridge_DEV_CONF1, 0x14, 1, FRMWRT_SGL_W);
 	vTaskDelay(10);
 
-	//=============================
-	//Initializing Daisy Chain ADCs
-	//=============================
-	writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
-	vTaskDelay(10);
 
-	uint8_t dev_stat;
-	for(uint8_t i = 1; i < TOTALBOARDS; i++)
-	{
-		readReg(i, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
-		if((dev_stat& 0x01) == 0){
-			//error
-			while(1);
-		}
-	}
 
 	xEventGroupSetBits(BMS_EventGroup, BMS_INIT_DONE_BIT);
 
@@ -713,6 +686,14 @@ void BMS_MonitorTask(void const * argument)
 	BMS_Queue_Measurement_t buffer;
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+
+	xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
+	configureAll_OVUV();
+	configureAll_OTUT();
+	initADC();
+	xSemaphoreGive(UART_MUTEX);
+
+
 	for(;;)
 	{
 
@@ -985,21 +966,21 @@ void BMS_ChargerTask(void const * argument)
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
 	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
 	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
-//	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+	//	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
 	while(1)
 	{
 		charger_fault = 0;
 		// Wait until interrupt occurs
 		ulTaskNotifyTake(
-			pdTRUE,        // Clear notification value before returning
-			portMAX_DELAY  // Block forever
+				pdTRUE,        // Clear notification value before returning
+				portMAX_DELAY  // Block forever
 		);
 		charger_last_rx_time = xTaskGetTickCount();
 		while(1)
 		{
 
-//			Check charger communication timeout
+			//			Check charger communication timeout
 			current_tick = xTaskGetTickCount();
 			if((current_tick - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
@@ -1057,6 +1038,14 @@ void BMS_ChargerTask(void const * argument)
 
 void BMS_FaultTask(void const * argument)
 {
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
+
+	xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
+	Bridge_FaultInit();
+	Stack_FaultInit();
+	xSemaphoreGive(UART_MUTEX);
+
+
 
 	while(1)
 	{
@@ -1068,13 +1057,20 @@ void BMS_FaultTask(void const * argument)
 				portMAX_DELAY
 		);
 
+
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+		vTaskDelay(5000);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+		vTaskDelay(5000);
+
+
 		//		Bridge_CheckFaults();
 		//		Stack_CheckFaultSummary();
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-//		vTaskDelay(1000);
-//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-		vTaskDelay(1000);
-		Send_GUI_Reading ();
+		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
+		//		vTaskDelay(1000);
+		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
+		//		vTaskDelay(1000);
+		//		Send_GUI_Reading ();
 
 	}
 
@@ -1097,11 +1093,9 @@ void BMS_BalancingTask(void const * argument)
 {
 	// waits for BMS_Init to finish
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-	//vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));
 	// one-time setup
 	xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
 	balancing_init();
-	balancing_update();
 	xSemaphoreGive(UART_MUTEX);
 
 	for (;;)
@@ -1109,8 +1103,16 @@ void BMS_BalancingTask(void const * argument)
 		vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));  // 60 second delay
 
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
-		balancing_update();
-		readBAL_STAT();
+		if(1)
+		{
+			balancing_update();
+			readBAL_STAT();
+		}
+		else{
+			balancing_stop();
+			readBAL_STAT();
+		}
+
 		xSemaphoreGive(UART_MUTEX);
 	}
 }

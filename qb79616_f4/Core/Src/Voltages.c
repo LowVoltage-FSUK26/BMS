@@ -12,14 +12,16 @@
 #include "Voltages.h"
 uint16_t cellVoltages_board[SLAVEBOARDS][16] = {0};
 float cellVoltages_board_float[SLAVEBOARDS][16];
-// BMS_Config.c
-uint8_t slaveCellCount[SLAVEBOARDS] = {16,16 };
-void initSlaveCellCount(void) {
-    for (uint8_t s = 0; s < SLAVEBOARDS; s++) {
-        if (s % 2 == 0) {
-            slaveCellCount[s] = 14;  // even index = 14 cells
-        } else {
-            slaveCellCount[s] = 13;  // odd index  = 13 cells
+
+void initADC(void) {
+    writeReg(0, BQ79616_ADC_CTRL1, 0x06, 1, FRMWRT_STK_W);
+    vTaskDelay(10);
+
+    uint8_t dev_stat;
+    for (uint8_t i = 1; i <= SLAVEBOARDS; i++) {
+        readReg(i, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
+        if ((dev_stat & 0x01) == 0) {
+            while(1);
         }
     }
 }
@@ -47,6 +49,14 @@ uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 		return 0;   //error OVUV is not enabled
 	}
 	return 1;
+}
+
+void configureAll_OVUV(void) {
+    for (uint8_t i = 1; i <= SLAVEBOARDS; i++) {
+        if (configure_OVUV(i, slaveCellCount[i-1]) != 1) {
+            while(1); // error handler
+        }
+    }
 }
 
 uint8_t readCellVoltages(uint8_t boardNum, uint8_t numCells, int *totalV){
@@ -148,4 +158,20 @@ void convertVoltages(void) {
     for (uint8_t s = 0; s < SLAVEBOARDS; s++)
         for (uint8_t c = 0; c < 16; c++)
             cellVoltages_board_float[s][c] = cellVoltages_board[s][c] * 0.00019073f;
+}
+float getTotalVoltage(void) {
+    float total = 0.0f;
+
+    //  (slaves: 0,1 / 8,9 / 16,17 / 24,25)
+    for (uint8_t seg = 0; seg < SLAVEBOARDS/8; seg++) {
+        uint8_t s1 = seg * 8;       // slave 14 cells
+        uint8_t s2 = seg * 8 + 1;   // slave 13 cells
+
+        for (uint8_t c = 0; c < slaveCellCount[s1]; c++)
+            total += cellVoltages_board_float[s1][c];
+
+        for (uint8_t c = 0; c < slaveCellCount[s2]; c++)
+            total += cellVoltages_board_float[s2][c];
+    }
+    return total;
 }

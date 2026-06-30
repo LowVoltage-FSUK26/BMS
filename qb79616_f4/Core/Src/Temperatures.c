@@ -44,6 +44,7 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	uint8_t cb_coolOff= 0x0F; //reset values of OTCB_THR and COOLOFF hysteresis
 	uint8_t dev_stat;
 	uint8_t goCmd = 0x05;
+
 	uint8_t gpioConf= 0x09; //for simplicity enable all gpio thermistors
 
 	//set UT and OT thresholds
@@ -62,7 +63,8 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	 */
 
 	writeReg(dev_address, BQ79616_GPIO_CONF1, gpioConf, 1, FRMWRT_SGL_W);// Enable GPIO1,2 for thermistor
-	writeReg(dev_address, BQ79616_GPIO_CONF2, gpioConf, 1, FRMWRT_SGL_W);// Enable GPIO3,4 for thermistor
+	//writeReg(dev_address, BQ79616_GPIO_CONF2, gpioConf, 1, FRMWRT_SGL_W);// Enable GPIO3,4 for thermistor
+//	writeReg(dev_address, BQ79616_GPIO_CONF3, 0x01, 1, FRMWRT_SGL_W);// Enable GPIO3,4 for thermistor
 	//set OTUT mode
 	writeReg(dev_address, BQ79616_OTUT_CTRL, OTUT_MODE,1 , FRMWRT_SGL_W);
 
@@ -79,6 +81,13 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	return 1;
 }
 
+void configureAll_OTUT(void) {
+    for (uint8_t i = 1; i <= SLAVEBOARDS; i++) {
+        if (configure_OTUT(i, 0) != 1) {
+            while(1);
+        }
+    }
+}
 
 uint16_t readGPIOVoltage(uint8_t BID, uint8_t GPIO_NUM, uint16_t* raw_value_ptr) {
 

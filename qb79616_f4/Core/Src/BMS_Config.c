@@ -37,3 +37,14 @@ void BMS_Can_Init(void)
 
 
 }
+
+uint8_t slaveCellCount[SLAVEBOARDS] = {16,16 };
+void initSlaveCellCount(void) {
+    for (uint8_t s = 0; s < SLAVEBOARDS; s++) {
+        if (s % 2 == 0) {
+            slaveCellCount[s] = 16;  // even index = 14 cells
+        } else {
+            slaveCellCount[s] = 16;  // odd index  = 13 cells
+        }
+    }
+}

@@ -17,6 +17,23 @@
 EventGroupHandle_t faultEventGroup;
 extern TaskHandle_t BmsChargerTaskHandle;
 
+
+void readAllFaultSummaries(void) {
+    // Read bridge fault summary
+	readReg(0, Bridge_FAULT_SUMMARY,
+				&bridge_faultSummary, 1, 100, FRMWRT_SGL_R);
+
+    // Read each slave fault summary
+    for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
+    	readReg(s,
+    			FAULT_SUMMARY,
+				&slaveFaultS[s-1],
+    			1,
+    			100,
+    			FRMWRT_SGL_R);
+    }
+}
+
 void Bridge_FaultInit(void)
 {
 	uint8_t bridge_faultMask = 0x00;   // Mask FTONE + HB + FCOMM

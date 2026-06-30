@@ -19,7 +19,7 @@ uint16_t findGlobalVmin(uint16_t voltages[SLAVEBOARDS][16]) {
 	uint16_t vmin = voltages[0][0];
 
 	for (uint8_t s = 0; s < SLAVEBOARDS; s++) {
-		for (uint8_t c = 0; c < NUM_CELLS; c++) {
+		for (uint8_t c = 0; c <slaveCellCount[s]; c++) {
 			if (voltages[s][c] < vmin)
 				vmin = voltages[s][c];
 		}
@@ -34,7 +34,7 @@ uint16_t findGlobalVmax(uint16_t voltages[SLAVEBOARDS][16]) {
 	uint16_t vmax = voltages[0][0];
 
 	for (uint8_t s = 0; s < SLAVEBOARDS; s++) {
-		for (uint8_t c = 0; c < NUM_CELLS; c++) {
+		for (uint8_t c = 0; c < slaveCellCount[s]; c++) {
 			if (voltages[s][c] > vmax)
 				vmax = voltages[s][c];
 		}
@@ -52,7 +52,7 @@ void balancing_init(void) {
 	for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
 
 		// 1. Set balancing timer for all cells (30 min)
-		for (uint8_t c = 0; c < NUM_CELLS; c++) {
+		for (uint8_t c = 0; c < slaveCellCount[s-1]; c++) {
 			writeReg(s, BQ79616_CB_CELL_CTRL_01  - c, 0x09, 1, FRMWRT_SGL_W);
 		}
 
@@ -82,7 +82,7 @@ void balancing_update(void) {
 	if ((vmax - vmin) < BALANCE_DELTA_LSB) {
 		// Pack is balanced — stop balancing
 
-		for (uint8_t c = 0; c < NUM_CELLS; c++) {
+		for (uint8_t c = 0; c < 16; c++) {
 			writeReg(0, BQ79616_CB_CELL_CTRL_01- c, 0x00, 1, FRMWRT_STK_W);
 
 		}
@@ -115,7 +115,7 @@ void balancing_update(void) {
 		}
 
 		// Rewrite timers with remaining values
-		for (uint8_t c = 0; c < NUM_CELLS; c++) {
+		for (uint8_t c = 0; c < slaveCellCount[s-1]; c++) {
 			uint8_t timer = ((cellVoltages_board[s-1][c] - vmin) > BALANCE_DELTA_LSB)? 0x09: 0x00;
 			writeReg(s, BQ79616_CB_CELL_CTRL_01- c, timer, 1, FRMWRT_SGL_W);
 		}
@@ -144,6 +144,13 @@ void readBAL_STAT(void) {
 		CB_CompleteReadings[s-1] = ((uint16_t)raw1 << 8) | raw2;
 	}
 }
+void balancing_stop(void) {
+    for (uint8_t c = 0; c < 16; c++) {
+        writeReg(0, BQ79616_CB_CELL_CTRL_01 - c, 0x00, 1, FRMWRT_STK_W);
+    }
+    writeReg(0, BQ79616_BAL_CTRL2, BAL_CTRL2_RUN, 1, FRMWRT_STK_W);
+}
+
 BAL_STAT_t parse_BAL_STAT(uint8_t raw)
 {
 	BAL_STAT_t stat;

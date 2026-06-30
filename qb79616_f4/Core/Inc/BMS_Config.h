@@ -24,7 +24,7 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 		1      //boards in stack (including the bridge)
+#define TOTALBOARDS 		2      //boards in stack (including the bridge)
 #define SLAVEBOARDS			(TOTALBOARDS - 1)
 #define ACTIVE_CELLS		16
 #define Thermistor_GPIO 	2
@@ -198,7 +198,8 @@ typedef struct {
    ------------------------------------
  */
 void BMS_Can_Init(void);
-
+extern uint8_t slaveCellCount[SLAVEBOARDS] ;
+void initSlaveCellCount(void);
 
 
 
