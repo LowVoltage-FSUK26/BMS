@@ -16,6 +16,7 @@
 
 EventGroupHandle_t faultEventGroup;
 extern TaskHandle_t BmsChargerTaskHandle;
+extern uint8_t charger_ON;
 
 
 void readAllFaultSummaries(void) {
@@ -381,6 +382,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 		if((xTaskGetTickCountFromISR() - last_exti) > pdMS_TO_TICKS(100))
 		{
+			charger_ON = 1;
 			vTaskNotifyGiveFromISR(
 							BmsChargerTaskHandle,
 							&xHigherPriorityTaskWoken

@@ -153,6 +153,7 @@ BMS_CAN_Frame_t BMS_CAN_RxData;
 //    CHARGER Variables
 //-----------------------
 volatile uint8_t charger_fault = 0;
+volatile uint8_t charger_ON = 0;
 volatile TickType_t charger_last_rx_time;
 
 
@@ -294,9 +295,9 @@ int main(void)
 
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	//xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
@@ -990,7 +991,7 @@ void BMS_ChargerTask(void const * argument)
 			//Charger fault detected
 			memset(&tx_frame,0,sizeof(tx_frame));
 
-			if(charger_fault)
+			if(charger_fault && charger_ON)
 			{
 
 				tx_frame.bytes[0] = 0;
@@ -1010,7 +1011,7 @@ void BMS_ChargerTask(void const * argument)
 				vTaskDelay(10);
 				break;
 			}
-			else
+			else if(charger_ON)
 			{
 				tx_frame.bytes[0] = CHAR_MAX_VOLT_High;
 				tx_frame.bytes[1] = CHAR_MAX_VOLT_low;
@@ -1174,11 +1175,15 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 
 		if((BMS_CAN_RxData.bytes[4] & 0b1000) == 0) //charger is ON
 		{
-
+			charger_ON = 1;
 			if((BMS_CAN_RxData.bytes[4] & 0b0111) != 0) //Fault Occurred
 			{
 				charger_fault = 1;
 			}
+		}
+		else
+		{
+			charger_ON = 0;
 		}
 
 		return; // Error

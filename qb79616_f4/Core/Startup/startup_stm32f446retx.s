@@ -58,7 +58,7 @@ defined in linker script */
   .weak  Reset_Handler
   .type  Reset_Handler, %function
 Reset_Handler:  
-t  ldr   sp, =_estack      /* set stack pointer */
+  ldr   sp, =_estack      /* set stack pointer */
   
 /* Call the clock system initialization function.*/
   bl  SystemInit  
