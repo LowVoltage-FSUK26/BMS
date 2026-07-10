@@ -296,13 +296,16 @@ int main(void)
 	//==================Define Tasks===================//
 	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
-	//xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
-	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
+
+	//xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
+//	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
+
+//	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
+
+	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_ChargerTask, "BMS_ChargerTask", 128, NULL,(UBaseType_t) 2, &BmsChargerTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_CurrentSensorTask, "CurrentSensor_Task", 128, NULL,(UBaseType_t) 1, &BmsCurrentSensorTaskHandle);
 
@@ -740,17 +743,17 @@ void BMS_MonitorTask(void const * argument)
 
 			//adding Voltage reading in queue
 
-			buffer.slave_id = i;
-			buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
-			xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
+//			buffer.slave_id = i;
+//			buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
+//			xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+//			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 		}
 
 		//calculating Battery voltage
-		buffer.slave_id = BATTERYVOLT_ID;
-		buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_battary_voltage);
-		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
+//		buffer.slave_id = BATTERYVOLT_ID;
+//		buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_battary_voltage);
+//		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
+//		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 
 		xSemaphoreGive(UART_MUTEX);////////////////////////////////////////////////
 
@@ -762,21 +765,21 @@ void BMS_MonitorTask(void const * argument)
 		readTSREF();
 		convertAllTemperatures();
 
-		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
-		{
-			buffer.slave_id = i;
-			float temperautre_sum = 0;
-			for(uint8_t j = 1; j <= NUM_GPIOS; j++)
-			{
-				temperautre_sum += temperatures[i-1][j-1];
-
-			}
-			//buffer.value = BMS_data_convert(BMS_DATA_TEMPERATURE, temperautre_sum/NUM_GPIOS);
-			buffer.value =(int16_t)((temperautre_sum*100)/NUM_GPIOS);
-			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-			vTaskDelay(pdMS_TO_TICKS(5));
-			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
-		}
+//		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
+//		{
+//			buffer.slave_id = i;
+//			float temperautre_sum = 0;
+//			for(uint8_t j = 1; j <= NUM_GPIOS; j++)
+//			{
+//				temperautre_sum += temperatures[i-1][j-1];
+//
+//			}
+//			//buffer.value = BMS_data_convert(BMS_DATA_TEMPERATURE, temperautre_sum/NUM_GPIOS);
+//			buffer.value =(int16_t)((temperautre_sum*100)/NUM_GPIOS);
+//			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
+//			vTaskDelay(pdMS_TO_TICKS(5));
+//			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
+//		}
 
 		xSemaphoreGive(UART_MUTEX);///////////////////////////////////////////////////////////
 
