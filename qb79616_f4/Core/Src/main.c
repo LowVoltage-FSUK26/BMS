@@ -294,15 +294,9 @@ int main(void)
 	CAN_MUTEX  = xSemaphoreCreateMutex();
 
 	//==================Define Tasks===================//
-	//xTaskCreate((TaskFunction_t) StartDefaultTask, "defaultTask", 128, NULL,(UBaseType_t) 0, &defaultTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_Init, "BMS_Init", 80, NULL,(UBaseType_t) 5, &BmsInitTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_MonitorTask, "BMS_MonitorTask", 128, NULL,(UBaseType_t) 3, &BmsMonitorTaskHandle);
 
-	//xTaskCreate((TaskFunction_t) BMS_CanTX_Task, "BMS_CanTX_Task", 128, NULL,(UBaseType_t) 5, &BmsCanTxTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_ReadTempTask, "BMS_Read_Temp_Task", 128, NULL,(UBaseType_t) 2, &BmsReadTempTaskHandle);
-//	xTaskCreate((TaskFunction_t) BMS_CellVoltageTask, "BMS_CellVoltage_Task", 128, NULL,(UBaseType_t) 2, &BmsCellVoltageTaskHandle);
-
-//	xTaskCreate((TaskFunction_t) BMS_CommadTask, "BMS_CommadTask", 128, NULL,(UBaseType_t) 3, &BmsCommandTaskHandle);
 	xTaskCreate((TaskFunction_t) BMS_FaultTask, "BMS_FaultTask", 80, NULL,(UBaseType_t) 4, &BmsFaultTaskHandle);
 
 	xTaskCreate((TaskFunction_t) BMS_BalancingTask, "BMS_BalancingTask", 256, NULL,(UBaseType_t) 4, &BmsBalancingTaskHandle);
@@ -622,18 +616,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
-void StartDefaultTask(void const * argument)
-{
-	/* USER CODE BEGIN 5 */
-	for(;;)
-	{
-
-		// osDelay(1);
-	}
-	/* USER CODE END 5 */
-}
-
 void BMS_Init(void const * argument)
 {
 	//=============================
@@ -730,254 +712,20 @@ void BMS_MonitorTask(void const * argument)
 		readBAL_STAT();
 
 
-
-		//Fetching the Voltage Value of Each Slave
-		int raw_battary_voltage = 0;
-		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
-		{
-			int raw_slave_volt = 0;
-			for (uint8_t j = 1; j <= slaveCellCount[i-1]; j++) {
-				raw_slave_volt += cellVoltages_board[i-1][j-1];
-			}
-			raw_battary_voltage += raw_slave_volt;
-
-			//adding Voltage reading in queue
-
-//			buffer.slave_id = i;
-//			buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_slave_volt);
-//			xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-//			xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
-		}
-
-		//calculating Battery voltage
-//		buffer.slave_id = BATTERYVOLT_ID;
-//		buffer.value = BMS_data_convert(BMS_DATA_VOLTAGE, raw_battary_voltage);
-//		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
-//		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
-
 		xSemaphoreGive(UART_MUTEX);////////////////////////////////////////////////
 
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
 
 		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);///////////////////////////////////////////
-		//todo make it in only one function and remove DRDY_MAIN_ADC
 		readAllGPIO();
 		readTSREF();
 		convertAllTemperatures();
-
-//		for(uint8_t i = 1; i <= SLAVEBOARDS; i++)
-//		{
-//			buffer.slave_id = i;
-//			float temperautre_sum = 0;
-//			for(uint8_t j = 1; j <= NUM_GPIOS; j++)
-//			{
-//				temperautre_sum += temperatures[i-1][j-1];
-//
-//			}
-//			//buffer.value = BMS_data_convert(BMS_DATA_TEMPERATURE, temperautre_sum/NUM_GPIOS);
-//			buffer.value =(int16_t)((temperautre_sum*100)/NUM_GPIOS);
-//			xQueueSendToBack(bmsTempQueue, &buffer, (TickType_t)10);
-//			vTaskDelay(pdMS_TO_TICKS(5));
-//			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
-//		}
 
 		xSemaphoreGive(UART_MUTEX);///////////////////////////////////////////////////////////
 
 	}
 }
-//Receives Command in a Queue and Sends Commands to Daisy chains on demand
-void BMS_CommadTask(void const * argument)
-{
-	BMS_Request_t req;
-	uint8_t cmd_res = 0;
-	//todo Make timeout and Handling to this timeout
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-	for(;;)
-	{
-		if(xQueueReceive(bmsCmdQueue, &req, portMAX_DELAY) == pdTRUE)
-		{
-			xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
-			switch(req.cmd)
-			{
-			case CMD_READ_BRIDGE_FS:
-				//fault_summary = Send to bridge to read fault summary
-				xTaskNotify(req.requester, NOTIFY_BMS_GOT_FS, eSetBits);
-				Bridge_CheckFaults();
-				Stack_CheckFaultSummary();
-				//				Send_GUI_Reading ();
-				cmd_res = 0;
-				break;
 
-			case CMD_READ_GPIO_ADC:
-
-
-				break;
-			case CMD_READ_CELL_VOLTAGES:
-				break;
-			}
-			xSemaphoreGive(UART_MUTEX);
-			xTaskNotify(req.requester, cmd_res, eSetBits);
-		}
-	}
-}
-
-//Sends a read voltage cmd to BMS queue to read cell voltages
-void BMS_CellVoltageTask(void const * argument)
-{
-	BMS_Request_t req;
-	req.cmd = CMD_READ_CELL_VOLTAGES;
-	req.requester = xTaskGetCurrentTaskHandle();
-	BMS_Queue_Measurement_t volt_buffer;
-	BMS_CAN_Queue_Message_t can_buffer;
-	can_buffer.type = BMS_DATA_VOLTAGE;
-	memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-
-	//todo Make timeout and Handling to this timeout
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-
-	for(;;)
-	{
-
-
-		if(xQueueReceive(bmsVoltageQueue, &volt_buffer, (TickType_t)10) == pdTRUE)
-		{
-
-			if(volt_buffer.slave_id == BATTERYVOLT_ID)
-			{
-				battery_volt = ((float)(volt_buffer.value) / 100);
-			}
-
-			can_buffer.Data.frame.slave[(volt_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = volt_buffer.value;
-
-			if(((volt_buffer.slave_id % CAN_DATA_PER_FRAME) == 0))
-			{
-				can_buffer.first_slave_id = volt_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-				xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
-				memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-			}
-
-		}
-		else
-		{
-			//todo Optimize wait delay to be dynamic to the number of slaves
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_VOLT, NULL, portMAX_DELAY);
-		}
-
-	}
-}
-
-//Sends a read voltage cmd to BMS queue to read cell temp
-void BMS_ReadTempTask(void const * argument)
-{
-	BMS_Request_t req;
-	req.cmd = CMD_READ_GPIO_ADC;
-	req.requester = xTaskGetCurrentTaskHandle();
-	//todo make it GPIO_generic
-	req.BOARD_NUM = 1;
-	req.GPIO_NUM = 8;
-
-	BMS_Queue_Measurement_t temperature_buffer;
-	BMS_CAN_Queue_Message_t can_buffer;
-	can_buffer.type = BMS_DATA_TEMPERATURE;
-	memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-	uint8_t prev_first_ID = 0;
-
-	//todo Make timeout and Handling to this timeout
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-
-	for(;;)
-	{
-
-		//todo Optimize wait delay to be dynamic to the number of slaves
-		//wait for MSG to arrive
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, pdMS_TO_TICKS(portMAX_DELAY));
-
-		if(xQueueReceive(bmsTempQueue, &temperature_buffer, (TickType_t)10) == pdTRUE)
-		{
-
-			if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) &&  (temperature_buffer.slave_id != prev_first_ID))
-			{
-				if(prev_first_ID != 0)
-				{
-					can_buffer.first_slave_id = temperature_buffer.slave_id - CAN_DATA_PER_FRAME + 1;
-					xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
-					memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-				}
-				can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
-				prev_first_ID = temperature_buffer.slave_id;
-			}
-			else if(temperature_buffer.slave_id % CAN_DATA_PER_FRAME != 1)
-			{
-				can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
-			}
-			else if((temperature_buffer.slave_id % CAN_DATA_PER_FRAME == 1) && (temperature_buffer.slave_id == prev_first_ID))
-			{
-				can_buffer.first_slave_id = prev_first_ID;
-				xQueueSendToBack(bmsCanTXQueue, &can_buffer, (TickType_t)10);
-				memset(&can_buffer.Data, 0, sizeof(can_buffer.Data));
-				can_buffer.Data.frame.slave[(temperature_buffer.slave_id - 1) % CAN_DATA_PER_FRAME] = temperature_buffer.value;
-				prev_first_ID = temperature_buffer.slave_id;
-			}
-
-		}
-		else
-		{
-			//indicate message is not received
-			//todo Optimize wait delay to be dynamic to the number of slaves
-			xTaskNotifyWait(0, NOTIFY_BMS_GOT_TEMP, NULL, portMAX_DELAY);
-		}
-
-	}
-}
-
-
-void BMS_CanTX_Task(void const * argument)
-{
-	BMS_CAN_Queue_Message_t CAN_Queue_Buffer;
-	BMS_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
-	BMS_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
-
-
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-
-	for(;;)
-	{
-		if(xQueueReceive(bmsCanTXQueue, &CAN_Queue_Buffer, (TickType_t)10) == pdTRUE)
-		{
-			//todo SET proper IDS
-			if(CAN_Queue_Buffer.type == BMS_DATA_VOLTAGE)
-			{
-				BMS_CAN_TxHandler.StdId = CAN_VOLT_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
-				BMS_CAN_TxHandler.ExtId = 0x00;                 //Message ID extension for CAN extend
-				BMS_CAN_TxHandler.IDE = CAN_ID_STD;
-			}
-			else if(CAN_Queue_Buffer.type == BMS_DATA_TEMPERATURE)
-			{
-				BMS_CAN_TxHandler.StdId = CAN_TEMP_ID + ((CAN_Queue_Buffer.first_slave_id - 1) / CAN_DATA_PER_FRAME);                //Message ID
-				BMS_CAN_TxHandler.ExtId = 0x00;                 //Message ID extension for CAN extend
-				BMS_CAN_TxHandler.IDE = CAN_ID_STD;
-			}
-			else if(CAN_Queue_Buffer.type == BMS_CHARGER)
-			{
-				BMS_CAN_TxHandler.StdId = 0x00;               //Message ID
-				BMS_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
-				BMS_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
-			}
-
-			xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
-			if( HAL_CAN_AddTxMessage(&hcan1, &BMS_CAN_TxHandler, (uint8_t*)&(CAN_Queue_Buffer.Data), &TxMailbox) != HAL_OK)
-			{
-				//error
-				HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
-			}
-			xSemaphoreGive(CAN_MUTEX);
-			vTaskDelay(pdMS_TO_TICKS(10)); //delay for Charger task to take mutex
-
-			//			vTaskDelay(pdMS_TO_TICKS(50));
-		}
-	}
-
-}
 BMS_CAN_Frame_t tx_frame = {0};
 
 void BMS_ChargerTask(void const * argument)
