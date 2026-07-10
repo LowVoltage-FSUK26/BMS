@@ -720,7 +720,7 @@ void BMS_MonitorTask(void const * argument)
 		Bridge_CheckFaults();
 		Stack_CheckFaultSummary();
 
-		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);////////////////////////////////
+//		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);////////////////////////////////
 		readAllBoardVoltages();
 		convertVoltages();
 
@@ -752,11 +752,11 @@ void BMS_MonitorTask(void const * argument)
 		xQueueSendToBack(bmsVoltageQueue, &buffer, (TickType_t)10);
 		xTaskNotify(BmsCellVoltageTaskHandle, NOTIFY_BMS_GOT_VOLT, eSetBits);
 
-		xSemaphoreGive(UART_MUTEX);////////////////////////////////////////////////
+//		xSemaphoreGive(UART_MUTEX);////////////////////////////////////////////////
 
 		vTaskDelay(pdMS_TO_TICKS(10)); //delay for Commandtask to take mutex
 
-		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);///////////////////////////////////////////
+//		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);///////////////////////////////////////////
 		//todo make it in only one function and remove DRDY_MAIN_ADC
 		readAllGPIO();
 		readTSREF();
@@ -778,7 +778,7 @@ void BMS_MonitorTask(void const * argument)
 			xTaskNotify(BmsReadTempTaskHandle, NOTIFY_BMS_GOT_TEMP, eSetBits);
 		}
 
-		xSemaphoreGive(UART_MUTEX);///////////////////////////////////////////////////////////
+//		xSemaphoreGive(UART_MUTEX);///////////////////////////////////////////////////////////
 
 	}
 }
