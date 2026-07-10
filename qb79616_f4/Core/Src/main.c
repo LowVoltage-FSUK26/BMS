@@ -635,7 +635,7 @@ void BMS_Init(void const * argument)
 	for(uint8_t i = 1; i < TOTALBOARDS; i++)
 	{
 
-		if(configure_OVUV(i, 14) != 1)
+		if(configure_OVUV(i, 16) != 1)
 		{
 			//error
 			while(1);
@@ -906,6 +906,18 @@ void BMS_CurrentSensorTask(void const * argument)
 		Vout_V = (double)(((raw_adc_Vout )/40950.0)*3.3);
 		current_read = (Vout_V - Vref_V) * (HASS_50_S_IPN/0.625);
 
+		if(current_read >= OV_CURRENT)
+		{
+			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+					xEventGroupSetBitsFromISR(
+							faultEventGroup,
+							FAULT_EVENT_BIT,
+							&xHigherPriorityTaskWoken
+					);
+
+					portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+		}
 		// 5. Rest for 20ms before starting the next batch
 		vTaskDelay(pdMS_TO_TICKS(100));
 	}

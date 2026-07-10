@@ -7,7 +7,7 @@
 
 #ifndef INC_TEMPERATURES_H_
 #define INC_TEMPERATURES_H_
-#define NUM_GPIOS   4  // change this to match active thermistors per slave
+#define NUM_GPIOS   5  // change this to match active thermistors per slave
 
 #define NTC_TABLE_SIZE  (sizeof(ntc_table) / sizeof(ntc_table[0]))
 #define R_PULLUP      10000.0f

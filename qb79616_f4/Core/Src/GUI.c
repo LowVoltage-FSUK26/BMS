@@ -68,15 +68,23 @@ void UART_Send_Board_Frame_CharByChar(uint8_t board_num)
 		HAL_UART_Transmit(&huart4, (uint8_t*)"|", 1, HAL_MAX_DELAY);
 
 		// ----- GPIOs -----
-		for(int i=0;i<4;i++)
+		for(int i=0;i<5;i++)
 		{
 			uint16_to_hex4(temp,GpioReadings[board_num-1][i]);
 			for(int j=0;j<4;j++)
 				HAL_UART_Transmit(&huart4, (uint8_t*)&temp[j], 1, HAL_MAX_DELAY);
 
-			if(i != 4-1)
+			if(i != 5-1)
 				HAL_UART_Transmit(&huart4, (uint8_t*)",", 1, HAL_MAX_DELAY);
 		}
+
+		// ----- Separator -----
+		HAL_UART_Transmit(&huart4, (uint8_t*)"|", 1, HAL_MAX_DELAY);
+
+		// ----- TSREF -----
+		uint16_to_hex4(temp, TsrefReadings[board_num-1]);
+		for(int j=0;j<4;j++)
+			HAL_UART_Transmit(&huart4, (uint8_t*)&temp[j], 1, HAL_MAX_DELAY);
 
 		// ----- Separator -----
 		HAL_UART_Transmit(&huart4, (uint8_t*)"|", 1, HAL_MAX_DELAY);
@@ -101,6 +109,6 @@ void Send_GUI_Reading (void)
 	}
 
 }
-//	    const char *msg1 = "S1|1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000|0FFF,0000,0FFF,0555|54\n";
-//		const char *msg2 = "S2|1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000|0FFF,0000,0FFF,0555|54\n";
-//		const char *msg3 = "S3|1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000|0FFF,0000,0FFF,0555|54\n";
+//	    const char *msg1 = "S1|1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000|0FFF,0000,0FFF,0555,0888|7E8C|54\n";
+//		const char *msg2 = "S2|1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000|0FFF,0000,0FFF,0555,0888|7E8C|54\n";
+//		const char *msg3 = "S3|1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000,0000,0000,1E78,1E79,0000,0000|0FFF,0000,0FFF,0555,0888|7E8C|54\n";

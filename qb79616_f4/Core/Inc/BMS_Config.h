@@ -24,7 +24,7 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 		3      //boards in stack (including the bridge)
+#define TOTALBOARDS 		3     //boards in stack (including the bridge)
 #define SLAVEBOARDS			(TOTALBOARDS - 1)
 #define ACTIVE_CELLS		16
 #define Thermistor_GPIO 	2
@@ -87,6 +87,7 @@
 #define HASS_50_S_IPN  	50
 #define NUM_SAMPLES 	10
 #define NUM_CHANNELS 	2
+#define OV_CURRENT		20
 
 /* ------------------------------------
      BMS Frame Structs
