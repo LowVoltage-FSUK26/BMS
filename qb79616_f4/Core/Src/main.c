@@ -908,15 +908,7 @@ void BMS_CurrentSensorTask(void const * argument)
 
 		if(current_read >= OV_CURRENT)
 		{
-			BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
-					xEventGroupSetBitsFromISR(
-							faultEventGroup,
-							FAULT_EVENT_BIT,
-							&xHigherPriorityTaskWoken
-					);
-
-					portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+			xEventGroupSetBits(faultEventGroup, FAULT_EVENT_BIT);
 		}
 		// 5. Rest for 20ms before starting the next batch
 		vTaskDelay(pdMS_TO_TICKS(100));

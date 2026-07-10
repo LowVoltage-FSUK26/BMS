@@ -87,7 +87,7 @@
 #define HASS_50_S_IPN  	50
 #define NUM_SAMPLES 	10
 #define NUM_CHANNELS 	2
-#define OV_CURRENT		20
+#define OV_CURRENT		50
 
 /* ------------------------------------
      BMS Frame Structs
