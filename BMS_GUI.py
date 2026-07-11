@@ -6,6 +6,8 @@ import serial
 # Configuration
 # =========================================
 NUM_SLAVES = 2
+NUM_GPIOS = 5  # must match NUM_GPIOS in Temperatures.h
+TEMP_LIMIT_C = 45.0  # must match TEMP_LIMIT in bq79616.h
 BRIDGE_NAME = "S0"
 SLAVE_NAMES = [f"S{i}" for i in range(1, NUM_SLAVES + 1)]
 ALL_MODULES = [BRIDGE_NAME] + SLAVE_NAMES
@@ -58,7 +60,8 @@ uart_data = {}
 for s in SLAVE_NAMES:
     uart_data[s] = {
         "cells": ",".join(["0000"] * 16),
-        "gpio":  ",".join(["0000"] * 4),
+        "gpio":  ",".join(["0000"] * NUM_GPIOS),
+        "tsref": "0000",
         "fault": "00"
     }
 uart_data[BRIDGE_NAME] = {"fault": "0"}
@@ -68,6 +71,7 @@ uart_data[BRIDGE_NAME] = {"fault": "0"}
 # =========================================
 cell_labels        = {}
 gpio_labels        = {}
+tsref_labels       = {}
 slave_total_labels = {}
 slave_frames       = {}
 fault_labels       = {}
@@ -80,6 +84,72 @@ def hex_to_cell_voltage(hex_str):
 
 def hex_to_gpio_voltage(hex_str):
     return round(int(hex_str, 16) * 152.59 / 1_000_000, 3)
+
+# =========================================
+# NTC Lookup Table + Temperature Conversion
+# (ported from Temperatures.c: ntc_table[] / convertNTCtoTemp())
+# =========================================
+R_PULLUP = 10000.0
+GPIO_LSB = 0.00015259  # volts per LSB, matches VLSB_GPIO in bq79616.h
+
+# (temp_C, resistance_ohms) — center resistance values from datasheet
+NTC_TABLE = [
+    (-40, 335746), (-39, 314203), (-38, 294177), (-37, 275554), (-36, 258227),
+    (-35, 242098), (-34, 227077), (-33, 213082), (-32, 200037), (-31, 187871),
+    (-30, 176521), (-29, 165926), (-28, 156034), (-27, 146792), (-26, 138154),
+    (-25, 130077), (-24, 122523), (-23, 115453), (-22, 108834), (-21, 102636),
+    (-20,  96828), (-19,  91383), (-18,  86278), (-17,  81489), (-16,  76995),
+    (-15,  72776), (-14,  68813), (-13,  65090), (-12,  61590), (-11,  58300),
+    (-10,  55205), ( -9,  52292), ( -8,  49551), ( -7,  46969), ( -6,  44538),
+    ( -5,  42246), ( -4,  40086), ( -3,  38049), ( -2,  36127), ( -1,  34314),
+    (  0,  32602), (  1,  30986), (  2,  29459), (  3,  28016), (  4,  26653),
+    (  5,  25363), (  6,  24143), (  7,  22989), (  8,  21897), (  9,  20863),
+    ( 10,  19884), ( 11,  18956), ( 12,  18076), ( 13,  17243), ( 14,  16453),
+    ( 15,  15703), ( 16,  14992), ( 17,  14317), ( 18,  13676), ( 19,  13067),
+    ( 20,  12489), ( 21,  11940), ( 22,  11418), ( 23,  10921), ( 24,  10449),
+    ( 25,  10000), ( 26,   9573), ( 27,   9166), ( 28,   8779), ( 29,   8410),
+    ( 30,   8059), ( 31,   7724), ( 32,   7405), ( 33,   7101), ( 34,   6812),
+    ( 35,   6535), ( 36,   6271), ( 37,   6020), ( 38,   5779), ( 39,   5550),
+    ( 40,   5331), ( 41,   5122), ( 42,   4922), ( 43,   4731), ( 44,   4548),
+    ( 45,   4373), ( 46,   4206), ( 47,   4047), ( 48,   3894), ( 49,   3748),
+    ( 50,   3608), ( 51,   3474), ( 52,   3345), ( 53,   3222), ( 54,   3105),
+    ( 55,   2992), ( 56,   2883), ( 57,   2780), ( 58,   2680), ( 59,   2585),
+    ( 60,   2493), ( 61,   2406), ( 62,   2321), ( 63,   2240), ( 64,   2163),
+    ( 65,   2088), ( 66,   2017), ( 67,   1948), ( 68,   1882), ( 69,   1818),
+    ( 70,   1757), ( 71,   1698), ( 72,   1642), ( 73,   1588), ( 74,   1535),
+    ( 75,   1485), ( 76,   1437), ( 77,   1390), ( 78,   1345), ( 79,   1302),
+    ( 80,   1261), ( 81,   1221), ( 82,   1182), ( 83,   1145), ( 84,   1109),
+    ( 85,   1075), ( 86,   1041), ( 87,   1009), ( 88,    978), ( 89,    948),
+    ( 90,    920), ( 91,    892), ( 92,    865), ( 93,    839), ( 94,    814),
+    ( 95,    790), ( 96,    767), ( 97,    744), ( 98,    723), ( 99,    702),
+    (100,    681), (101,    662), (102,    643), (103,    624), (104,    607),
+    (105,    590), (106,    573), (107,    557), (108,    542), (109,    527),
+    (110,    512), (111,    498), (112,    484), (113,    471), (114,    459),
+    (115,    446), (116,    434), (117,    423), (118,    411), (119,    401),
+    (120,    390), (121,    380), (122,    370), (123,    360), (124,    351),
+    (125,    342),
+]
+
+def raw_to_temp_c(raw_gpio_hex, raw_tsref_hex):
+    """Mirrors convertNTCtoTemp() in Temperatures.c: raw -> voltage -> resistance -> degC."""
+    v_gpio = int(raw_gpio_hex, 16) * GPIO_LSB
+    v_tsref = int(raw_tsref_hex, 16) * GPIO_LSB
+
+    if v_gpio <= 0.0 or v_gpio >= v_tsref:
+        return -273.15  # error sentinel, matches firmware
+
+    r_ntc = R_PULLUP * v_gpio / (v_tsref - v_gpio)
+
+    if r_ntc >= NTC_TABLE[0][1]:
+        return float(NTC_TABLE[0][0])
+    if r_ntc <= NTC_TABLE[-1][1]:
+        return float(NTC_TABLE[-1][0])
+
+    for (t_high, r_high), (t_low, r_low) in zip(NTC_TABLE, NTC_TABLE[1:]):
+        if r_ntc <= r_high and r_ntc >= r_low:
+            return t_high + (t_low - t_high) * (r_high - r_ntc) / (r_high - r_low)
+
+    return -273.15  # should never reach here
 
 # =========================================
 # Toggle Slave View
@@ -103,10 +173,11 @@ def parse_uart_line(line):
     if slave not in uart_data:
         return
     if slave != BRIDGE_NAME:
-        if len(parts) >= 4:
+        if len(parts) >= 5:
             uart_data[slave]["cells"] = parts[1]
             uart_data[slave]["gpio"]  = parts[2]
-            uart_data[slave]["fault"] = parts[3]
+            uart_data[slave]["tsref"] = parts[3]
+            uart_data[slave]["fault"] = parts[4]
     else:
         if len(parts) >= 2:
             uart_data[slave]["fault"] = parts[1]
@@ -150,15 +221,20 @@ def update_gui():
                     text=f"C{i+1:02d}\n{v:.3f}V",
                     fg=color
                 )
-            hex_gpio   = uart_data[slave]["gpio"].split(",")
-            gpio_values = [hex_to_gpio_voltage(h) for h in hex_gpio]
-            for i, value in enumerate(gpio_values):
-                color = (COLORS["accent_red"] if value < 0.5 or value > 3.3
+            hex_gpio    = uart_data[slave]["gpio"].split(",")
+            hex_tsref   = uart_data[slave]["tsref"]
+            temp_values = [raw_to_temp_c(h, hex_tsref) for h in hex_gpio]
+            for i, temp_c in enumerate(temp_values):
+                color = (COLORS["accent_red"] if temp_c >= TEMP_LIMIT_C
                          else COLORS["accent_green"])
                 gpio_labels[slave][i].config(
-                    text=f"GPIO{i+1}  {value:.3f} V",
+                    text=f"GPIO{i+1}  {temp_c:.1f} °C",
                     bg=color
                 )
+
+            tsref_labels[slave].config(
+                text=f"TSREF  {hex_to_gpio_voltage(hex_tsref):.3f} V"
+            )
 
         fault_hex = uart_data[slave]["fault"]
         try:
@@ -414,16 +490,16 @@ for row_idx, s in enumerate(ALL_MODULES):
             cell_labels[s].append(lbl)
 
         # ── GPIO ───────────────────────────
-        gpio_outer = ttk.LabelFrame(frame, text="  ANALOG GPIO", padding=(12, 8))
+        gpio_outer = ttk.LabelFrame(frame, text="  THERMISTORS (GPIO)", padding=(12, 8))
         gpio_outer.grid(row=1, column=0, sticky="ew", pady=(0, 12))
-        gpio_outer.columnconfigure(tuple(range(4)), weight=1)
+        gpio_outer.columnconfigure(tuple(range(NUM_GPIOS + 1)), weight=1)
 
         gpio_row = tk.Frame(gpio_outer, bg=COLORS["bg_card_inner"])
-        gpio_row.grid(row=0, column=0, columnspan=4)
-        for g in range(4):
+        gpio_row.grid(row=0, column=0, columnspan=NUM_GPIOS + 1)
+        for g in range(NUM_GPIOS):
             lbl = tk.Label(
                 gpio_row,
-                text=f"GPIO{g+1}  0.000 V",
+                text=f"GPIO{g+1}  0.0 °C",
                 width=16,
                 font=FONTS["body"],
                 bg=COLORS["fault_ok"],
@@ -433,6 +509,21 @@ for row_idx, s in enumerate(ALL_MODULES):
             )
             lbl.grid(row=0, column=g, padx=5)
             gpio_labels[s].append(lbl)
+
+        # TSREF — the reference voltage the GPIO readings above are
+        # converted against, not itself a thermistor channel.
+        tsref_lbl = tk.Label(
+            gpio_row,
+            text="TSREF  0.000 V",
+            width=16,
+            font=FONTS["body"],
+            bg=COLORS["accent_purple"],
+            fg="white",
+            padx=8, pady=4,
+            relief="flat"
+        )
+        tsref_lbl.grid(row=0, column=NUM_GPIOS, padx=5)
+        tsref_labels[s] = tsref_lbl
 
         # ── Faults ─────────────────────────
         fault_outer = ttk.LabelFrame(frame, text="  FAULT SUMMARY", padding=(12, 8))
