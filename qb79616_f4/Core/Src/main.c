@@ -741,6 +741,7 @@ void BMS_ChargerTask(void const * argument)
 				}
 				xSemaphoreGive(CAN_MUTEX);
 				vTaskDelay(10);
+				SHUTDOWN();
 			}
 
 			vTaskDelay(pdMS_TO_TICKS(1000));

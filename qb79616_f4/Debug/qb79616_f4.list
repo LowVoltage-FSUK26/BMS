@@ -37,15 +37,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  16 .debug_macro  00006dd4  00000000  00000000  000305b1  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_line   000210a2  00000000  00000000  00037385  2**0
+ 17 .debug_line   00022e98  00000000  00000000  00037385  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_str    000ece53  00000000  00000000  00058427  2**0
+ 18 .debug_str    000ece5c  00000000  00000000  0005a21d  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .comment      00000043  00000000  00000000  0014527a  2**0
+ 19 .comment      00000043  00000000  00000000  00147079  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  000065cc  00000000  00000000  001452c0  2**2
+ 20 .debug_frame  000065cc  00000000  00000000  001470bc  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 0000006f  00000000  00000000  0014b88c  2**0
+ 21 .debug_line_str 00000078  00000000  00000000  0014d688  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -6218,10 +6218,10 @@ int main(void)
  8003294:	08003869 	.word	0x08003869
  8003298:	20000430 	.word	0x20000430
  800329c:	0800bbbc 	.word	0x0800bbbc
- 80032a0:	08003a95 	.word	0x08003a95
+ 80032a0:	08003a99 	.word	0x08003a99
  80032a4:	20000434 	.word	0x20000434
  80032a8:	0800bbcc 	.word	0x0800bbcc
- 80032ac:	08003ad1 	.word	0x08003ad1
+ 80032ac:	08003ad5 	.word	0x08003ad5
  80032b0:	2000043c 	.word	0x2000043c
  80032b4:	0800bbe0 	.word	0x0800bbe0
  80032b8:	08003911 	.word	0x08003911
@@ -7301,30 +7301,30 @@ void BMS_ChargerTask(void const * argument)
  8003918:	2300      	movs	r3, #0
  800391a:	60fb      	str	r3, [r7, #12]
 	BMS_CHAR_CAN_TxHandler.RTR = CAN_RTR_DATA;           //Set RTR bit to 0(sends data)
- 800391c:	4b52      	ldr	r3, [pc, #328]	@ (8003a68 <BMS_ChargerTask+0x158>)
+ 800391c:	4b53      	ldr	r3, [pc, #332]	@ (8003a6c <BMS_ChargerTask+0x15c>)
  800391e:	2200      	movs	r2, #0
  8003920:	60da      	str	r2, [r3, #12]
 	BMS_CHAR_CAN_TxHandler.DLC = CAN_MSG_SIZE;           //Data sent is CAN_MSG_SIZE bytes in BMS_Config.h
- 8003922:	4b51      	ldr	r3, [pc, #324]	@ (8003a68 <BMS_ChargerTask+0x158>)
+ 8003922:	4b52      	ldr	r3, [pc, #328]	@ (8003a6c <BMS_ChargerTask+0x15c>)
  8003924:	2208      	movs	r2, #8
  8003926:	611a      	str	r2, [r3, #16]
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
- 8003928:	4b4f      	ldr	r3, [pc, #316]	@ (8003a68 <BMS_ChargerTask+0x158>)
+ 8003928:	4b50      	ldr	r3, [pc, #320]	@ (8003a6c <BMS_ChargerTask+0x15c>)
  800392a:	2200      	movs	r2, #0
  800392c:	601a      	str	r2, [r3, #0]
 	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
- 800392e:	4b4e      	ldr	r3, [pc, #312]	@ (8003a68 <BMS_ChargerTask+0x158>)
- 8003930:	4a4e      	ldr	r2, [pc, #312]	@ (8003a6c <BMS_ChargerTask+0x15c>)
+ 800392e:	4b4f      	ldr	r3, [pc, #316]	@ (8003a6c <BMS_ChargerTask+0x15c>)
+ 8003930:	4a4f      	ldr	r2, [pc, #316]	@ (8003a70 <BMS_ChargerTask+0x160>)
  8003932:	605a      	str	r2, [r3, #4]
 	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
- 8003934:	4b4c      	ldr	r3, [pc, #304]	@ (8003a68 <BMS_ChargerTask+0x158>)
+ 8003934:	4b4d      	ldr	r3, [pc, #308]	@ (8003a6c <BMS_ChargerTask+0x15c>)
  8003936:	2204      	movs	r2, #4
  8003938:	609a      	str	r2, [r3, #8]
 
 	while(1)
 	{
 		charger_fault = 0;
- 800393a:	4b4d      	ldr	r3, [pc, #308]	@ (8003a70 <BMS_ChargerTask+0x160>)
+ 800393a:	4b4e      	ldr	r3, [pc, #312]	@ (8003a74 <BMS_ChargerTask+0x164>)
  800393c:	2200      	movs	r2, #0
  800393e:	701a      	strb	r2, [r3, #0]
 		// Wait until interrupt occurs
@@ -7339,7 +7339,7 @@ void BMS_ChargerTask(void const * argument)
 		charger_last_rx_time = xTaskGetTickCount();
  800394c:	f006 fc74 	bl	800a238 <xTaskGetTickCount>
  8003950:	4603      	mov	r3, r0
- 8003952:	4a48      	ldr	r2, [pc, #288]	@ (8003a74 <BMS_ChargerTask+0x164>)
+ 8003952:	4a49      	ldr	r2, [pc, #292]	@ (8003a78 <BMS_ChargerTask+0x168>)
  8003954:	6013      	str	r3, [r2, #0]
 		while(1)
 		{
@@ -7349,7 +7349,7 @@ void BMS_ChargerTask(void const * argument)
  8003956:	f006 fc6f 	bl	800a238 <xTaskGetTickCount>
  800395a:	60f8      	str	r0, [r7, #12]
 			if((current_tick - charger_last_rx_time) > pdMS_TO_TICKS(5000))
- 800395c:	4b45      	ldr	r3, [pc, #276]	@ (8003a74 <BMS_ChargerTask+0x164>)
+ 800395c:	4b46      	ldr	r3, [pc, #280]	@ (8003a78 <BMS_ChargerTask+0x168>)
  800395e:	681b      	ldr	r3, [r3, #0]
  8003960:	68fa      	ldr	r2, [r7, #12]
  8003962:	1ad3      	subs	r3, r2, r3
@@ -7358,7 +7358,7 @@ void BMS_ChargerTask(void const * argument)
  800396a:	d902      	bls.n	8003972 <BMS_ChargerTask+0x62>
 			{
 				charger_fault = 1;
- 800396c:	4b40      	ldr	r3, [pc, #256]	@ (8003a70 <BMS_ChargerTask+0x160>)
+ 800396c:	4b41      	ldr	r3, [pc, #260]	@ (8003a74 <BMS_ChargerTask+0x164>)
  800396e:	2201      	movs	r2, #1
  8003970:	701a      	strb	r2, [r3, #0]
 			}
@@ -7367,16 +7367,16 @@ void BMS_ChargerTask(void const * argument)
 			memset(&tx_frame,0,sizeof(tx_frame));
  8003972:	2208      	movs	r2, #8
  8003974:	2100      	movs	r1, #0
- 8003976:	4840      	ldr	r0, [pc, #256]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 8003976:	4841      	ldr	r0, [pc, #260]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  8003978:	f008 f8c4 	bl	800bb04 <memset>
 
 			if(charger_fault && charger_ON)
- 800397c:	4b3c      	ldr	r3, [pc, #240]	@ (8003a70 <BMS_ChargerTask+0x160>)
+ 800397c:	4b3d      	ldr	r3, [pc, #244]	@ (8003a74 <BMS_ChargerTask+0x164>)
  800397e:	781b      	ldrb	r3, [r3, #0]
  8003980:	b2db      	uxtb	r3, r3
  8003982:	2b00      	cmp	r3, #0
  8003984:	d035      	beq.n	80039f2 <BMS_ChargerTask+0xe2>
- 8003986:	4b3d      	ldr	r3, [pc, #244]	@ (8003a7c <BMS_ChargerTask+0x16c>)
+ 8003986:	4b3e      	ldr	r3, [pc, #248]	@ (8003a80 <BMS_ChargerTask+0x170>)
  8003988:	781b      	ldrb	r3, [r3, #0]
  800398a:	b2db      	uxtb	r3, r3
  800398c:	2b00      	cmp	r3, #0
@@ -7384,38 +7384,38 @@ void BMS_ChargerTask(void const * argument)
 			{
 
 				tx_frame.bytes[0] = 0;
- 8003990:	4b39      	ldr	r3, [pc, #228]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 8003990:	4b3a      	ldr	r3, [pc, #232]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  8003992:	2200      	movs	r2, #0
  8003994:	701a      	strb	r2, [r3, #0]
 				tx_frame.bytes[1] = 0;
- 8003996:	4b38      	ldr	r3, [pc, #224]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 8003996:	4b39      	ldr	r3, [pc, #228]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  8003998:	2200      	movs	r2, #0
  800399a:	705a      	strb	r2, [r3, #1]
 				tx_frame.bytes[2] = 0;
- 800399c:	4b36      	ldr	r3, [pc, #216]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 800399c:	4b37      	ldr	r3, [pc, #220]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  800399e:	2200      	movs	r2, #0
  80039a0:	709a      	strb	r2, [r3, #2]
 				tx_frame.bytes[3] = 0;
- 80039a2:	4b35      	ldr	r3, [pc, #212]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 80039a2:	4b36      	ldr	r3, [pc, #216]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  80039a4:	2200      	movs	r2, #0
  80039a6:	70da      	strb	r2, [r3, #3]
 				tx_frame.bytes[4] = CHAR_STOP;
- 80039a8:	4b33      	ldr	r3, [pc, #204]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 80039a8:	4b34      	ldr	r3, [pc, #208]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  80039aa:	2201      	movs	r2, #1
  80039ac:	711a      	strb	r2, [r3, #4]
 
 				//send stop frame
 				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
- 80039ae:	4b34      	ldr	r3, [pc, #208]	@ (8003a80 <BMS_ChargerTask+0x170>)
+ 80039ae:	4b35      	ldr	r3, [pc, #212]	@ (8003a84 <BMS_ChargerTask+0x174>)
  80039b0:	681b      	ldr	r3, [r3, #0]
  80039b2:	f04f 31ff 	mov.w	r1, #4294967295
  80039b6:	4618      	mov	r0, r3
  80039b8:	f005 feea 	bl	8009790 <xQueueSemaphoreTake>
 				if( HAL_CAN_AddTxMessage(&hcan1, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
- 80039bc:	4b31      	ldr	r3, [pc, #196]	@ (8003a84 <BMS_ChargerTask+0x174>)
- 80039be:	4a2e      	ldr	r2, [pc, #184]	@ (8003a78 <BMS_ChargerTask+0x168>)
- 80039c0:	4929      	ldr	r1, [pc, #164]	@ (8003a68 <BMS_ChargerTask+0x158>)
- 80039c2:	4831      	ldr	r0, [pc, #196]	@ (8003a88 <BMS_ChargerTask+0x178>)
+ 80039bc:	4b32      	ldr	r3, [pc, #200]	@ (8003a88 <BMS_ChargerTask+0x178>)
+ 80039be:	4a2f      	ldr	r2, [pc, #188]	@ (8003a7c <BMS_ChargerTask+0x16c>)
+ 80039c0:	492a      	ldr	r1, [pc, #168]	@ (8003a6c <BMS_ChargerTask+0x15c>)
+ 80039c2:	4832      	ldr	r0, [pc, #200]	@ (8003a8c <BMS_ChargerTask+0x17c>)
  80039c4:	f001 fc4c 	bl	8005260 <HAL_CAN_AddTxMessage>
  80039c8:	4603      	mov	r3, r0
  80039ca:	2b00      	cmp	r3, #0
@@ -7425,12 +7425,12 @@ void BMS_ChargerTask(void const * argument)
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
  80039ce:	f04f 33ff 	mov.w	r3, #4294967295
  80039d2:	220a      	movs	r2, #10
- 80039d4:	492d      	ldr	r1, [pc, #180]	@ (8003a8c <BMS_ChargerTask+0x17c>)
- 80039d6:	482e      	ldr	r0, [pc, #184]	@ (8003a90 <BMS_ChargerTask+0x180>)
+ 80039d4:	492e      	ldr	r1, [pc, #184]	@ (8003a90 <BMS_ChargerTask+0x180>)
+ 80039d6:	482f      	ldr	r0, [pc, #188]	@ (8003a94 <BMS_ChargerTask+0x184>)
  80039d8:	f004 f9fe 	bl	8007dd8 <HAL_UART_Transmit>
 				}
 				xSemaphoreGive(CAN_MUTEX);//
- 80039dc:	4b28      	ldr	r3, [pc, #160]	@ (8003a80 <BMS_ChargerTask+0x170>)
+ 80039dc:	4b29      	ldr	r3, [pc, #164]	@ (8003a84 <BMS_ChargerTask+0x174>)
  80039de:	6818      	ldr	r0, [r3, #0]
  80039e0:	2300      	movs	r3, #0
  80039e2:	2200      	movs	r2, #0
@@ -7440,46 +7440,46 @@ void BMS_ChargerTask(void const * argument)
  80039ea:	200a      	movs	r0, #10
  80039ec:	f006 fac4 	bl	8009f78 <vTaskDelay>
 				break;
- 80039f0:	e039      	b.n	8003a66 <BMS_ChargerTask+0x156>
+ 80039f0:	e03b      	b.n	8003a6a <BMS_ChargerTask+0x15a>
 			}
 			else if(charger_ON)
- 80039f2:	4b22      	ldr	r3, [pc, #136]	@ (8003a7c <BMS_ChargerTask+0x16c>)
+ 80039f2:	4b23      	ldr	r3, [pc, #140]	@ (8003a80 <BMS_ChargerTask+0x170>)
  80039f4:	781b      	ldrb	r3, [r3, #0]
  80039f6:	b2db      	uxtb	r3, r3
  80039f8:	2b00      	cmp	r3, #0
- 80039fa:	d02f      	beq.n	8003a5c <BMS_ChargerTask+0x14c>
+ 80039fa:	d031      	beq.n	8003a60 <BMS_ChargerTask+0x150>
 			{
 				tx_frame.bytes[0] = CHAR_MAX_VOLT_High;
- 80039fc:	4b1e      	ldr	r3, [pc, #120]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 80039fc:	4b1f      	ldr	r3, [pc, #124]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  80039fe:	2206      	movs	r2, #6
  8003a00:	701a      	strb	r2, [r3, #0]
 				tx_frame.bytes[1] = CHAR_MAX_VOLT_low;
- 8003a02:	4b1d      	ldr	r3, [pc, #116]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 8003a02:	4b1e      	ldr	r3, [pc, #120]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  8003a04:	22a4      	movs	r2, #164	@ 0xa4
  8003a06:	705a      	strb	r2, [r3, #1]
 				tx_frame.bytes[2] = CHAR_MAX_AMP_High;
- 8003a08:	4b1b      	ldr	r3, [pc, #108]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 8003a08:	4b1c      	ldr	r3, [pc, #112]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  8003a0a:	2200      	movs	r2, #0
  8003a0c:	709a      	strb	r2, [r3, #2]
 				tx_frame.bytes[3] = CHAR_MAX_AMP_low;
- 8003a0e:	4b1a      	ldr	r3, [pc, #104]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 8003a0e:	4b1b      	ldr	r3, [pc, #108]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  8003a10:	220a      	movs	r2, #10
  8003a12:	70da      	strb	r2, [r3, #3]
 				tx_frame.bytes[4] = CHAR_START;
- 8003a14:	4b18      	ldr	r3, [pc, #96]	@ (8003a78 <BMS_ChargerTask+0x168>)
+ 8003a14:	4b19      	ldr	r3, [pc, #100]	@ (8003a7c <BMS_ChargerTask+0x16c>)
  8003a16:	2200      	movs	r2, #0
  8003a18:	711a      	strb	r2, [r3, #4]
 				xSemaphoreTake(CAN_MUTEX, portMAX_DELAY);
- 8003a1a:	4b19      	ldr	r3, [pc, #100]	@ (8003a80 <BMS_ChargerTask+0x170>)
+ 8003a1a:	4b1a      	ldr	r3, [pc, #104]	@ (8003a84 <BMS_ChargerTask+0x174>)
  8003a1c:	681b      	ldr	r3, [r3, #0]
  8003a1e:	f04f 31ff 	mov.w	r1, #4294967295
  8003a22:	4618      	mov	r0, r3
  8003a24:	f005 feb4 	bl	8009790 <xQueueSemaphoreTake>
 				if( HAL_CAN_AddTxMessage(&hcan1, &BMS_CHAR_CAN_TxHandler, (uint8_t*)&(tx_frame), &TxMailbox) != HAL_OK)
- 8003a28:	4b16      	ldr	r3, [pc, #88]	@ (8003a84 <BMS_ChargerTask+0x174>)
- 8003a2a:	4a13      	ldr	r2, [pc, #76]	@ (8003a78 <BMS_ChargerTask+0x168>)
- 8003a2c:	490e      	ldr	r1, [pc, #56]	@ (8003a68 <BMS_ChargerTask+0x158>)
- 8003a2e:	4816      	ldr	r0, [pc, #88]	@ (8003a88 <BMS_ChargerTask+0x178>)
+ 8003a28:	4b17      	ldr	r3, [pc, #92]	@ (8003a88 <BMS_ChargerTask+0x178>)
+ 8003a2a:	4a14      	ldr	r2, [pc, #80]	@ (8003a7c <BMS_ChargerTask+0x16c>)
+ 8003a2c:	490f      	ldr	r1, [pc, #60]	@ (8003a6c <BMS_ChargerTask+0x15c>)
+ 8003a2e:	4817      	ldr	r0, [pc, #92]	@ (8003a8c <BMS_ChargerTask+0x17c>)
  8003a30:	f001 fc16 	bl	8005260 <HAL_CAN_AddTxMessage>
  8003a34:	4603      	mov	r3, r0
  8003a36:	2b00      	cmp	r3, #0
@@ -7489,12 +7489,12 @@ void BMS_ChargerTask(void const * argument)
 					HAL_UART_Transmit(&huart4, (uint8_t*)"CAN Failed", 10, HAL_MAX_DELAY);
  8003a3a:	f04f 33ff 	mov.w	r3, #4294967295
  8003a3e:	220a      	movs	r2, #10
- 8003a40:	4912      	ldr	r1, [pc, #72]	@ (8003a8c <BMS_ChargerTask+0x17c>)
- 8003a42:	4813      	ldr	r0, [pc, #76]	@ (8003a90 <BMS_ChargerTask+0x180>)
+ 8003a40:	4913      	ldr	r1, [pc, #76]	@ (8003a90 <BMS_ChargerTask+0x180>)
+ 8003a42:	4814      	ldr	r0, [pc, #80]	@ (8003a94 <BMS_ChargerTask+0x184>)
  8003a44:	f004 f9c8 	bl	8007dd8 <HAL_UART_Transmit>
 				}
 				xSemaphoreGive(CAN_MUTEX);
- 8003a48:	4b0d      	ldr	r3, [pc, #52]	@ (8003a80 <BMS_ChargerTask+0x170>)
+ 8003a48:	4b0e      	ldr	r3, [pc, #56]	@ (8003a84 <BMS_ChargerTask+0x174>)
  8003a4a:	6818      	ldr	r0, [r3, #0]
  8003a4c:	2300      	movs	r3, #0
  8003a4e:	2200      	movs	r2, #0
@@ -7503,147 +7503,148 @@ void BMS_ChargerTask(void const * argument)
 				vTaskDelay(10);
  8003a56:	200a      	movs	r0, #10
  8003a58:	f006 fa8e 	bl	8009f78 <vTaskDelay>
+				SHUTDOWN();
+ 8003a5c:	f7fd fc58 	bl	8001310 <SHUTDOWN>
 			}
 
 			vTaskDelay(pdMS_TO_TICKS(1000));
- 8003a5c:	f44f 707a 	mov.w	r0, #1000	@ 0x3e8
- 8003a60:	f006 fa8a 	bl	8009f78 <vTaskDelay>
+ 8003a60:	f44f 707a 	mov.w	r0, #1000	@ 0x3e8
+ 8003a64:	f006 fa88 	bl	8009f78 <vTaskDelay>
 			current_tick = xTaskGetTickCount();
- 8003a64:	e777      	b.n	8003956 <BMS_ChargerTask+0x46>
+ 8003a68:	e775      	b.n	8003956 <BMS_ChargerTask+0x46>
 		charger_fault = 0;
- 8003a66:	e768      	b.n	800393a <BMS_ChargerTask+0x2a>
- 8003a68:	20000450 	.word	0x20000450
- 8003a6c:	1806e5f4 	.word	0x1806e5f4
- 8003a70:	20000490 	.word	0x20000490
- 8003a74:	20000494 	.word	0x20000494
- 8003a78:	200004d0 	.word	0x200004d0
- 8003a7c:	20000491 	.word	0x20000491
- 8003a80:	2000044c 	.word	0x2000044c
- 8003a84:	20000484 	.word	0x20000484
- 8003a88:	20000370 	.word	0x20000370
- 8003a8c:	0800bc10 	.word	0x0800bc10
- 8003a90:	20000398 	.word	0x20000398
+ 8003a6a:	e766      	b.n	800393a <BMS_ChargerTask+0x2a>
+ 8003a6c:	20000450 	.word	0x20000450
+ 8003a70:	1806e5f4 	.word	0x1806e5f4
+ 8003a74:	20000490 	.word	0x20000490
+ 8003a78:	20000494 	.word	0x20000494
+ 8003a7c:	200004d0 	.word	0x200004d0
+ 8003a80:	20000491 	.word	0x20000491
+ 8003a84:	2000044c 	.word	0x2000044c
+ 8003a88:	20000484 	.word	0x20000484
+ 8003a8c:	20000370 	.word	0x20000370
+ 8003a90:	0800bc10 	.word	0x0800bc10
+ 8003a94:	20000398 	.word	0x20000398
 
-08003a94 <BMS_FaultTask>:
+08003a98 <BMS_FaultTask>:
 }
 
 
 
 void BMS_FaultTask(void const * argument)
 {
- 8003a94:	b580      	push	{r7, lr}
- 8003a96:	b084      	sub	sp, #16
- 8003a98:	af02      	add	r7, sp, #8
- 8003a9a:	6078      	str	r0, [r7, #4]
+ 8003a98:	b580      	push	{r7, lr}
+ 8003a9a:	b084      	sub	sp, #16
+ 8003a9c:	af02      	add	r7, sp, #8
+ 8003a9e:	6078      	str	r0, [r7, #4]
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
- 8003a9c:	4b0a      	ldr	r3, [pc, #40]	@ (8003ac8 <BMS_FaultTask+0x34>)
- 8003a9e:	6818      	ldr	r0, [r3, #0]
- 8003aa0:	2101      	movs	r1, #1
- 8003aa2:	f04f 33ff 	mov.w	r3, #4294967295
- 8003aa6:	9300      	str	r3, [sp, #0]
- 8003aa8:	2301      	movs	r3, #1
- 8003aaa:	2200      	movs	r2, #0
- 8003aac:	f005 f9c8 	bl	8008e40 <xEventGroupWaitBits>
+ 8003aa0:	4b0a      	ldr	r3, [pc, #40]	@ (8003acc <BMS_FaultTask+0x34>)
+ 8003aa2:	6818      	ldr	r0, [r3, #0]
+ 8003aa4:	2101      	movs	r1, #1
+ 8003aa6:	f04f 33ff 	mov.w	r3, #4294967295
+ 8003aaa:	9300      	str	r3, [sp, #0]
+ 8003aac:	2301      	movs	r3, #1
+ 8003aae:	2200      	movs	r2, #0
+ 8003ab0:	f005 f9c6 	bl	8008e40 <xEventGroupWaitBits>
 
 	while(1)
 	{
 		xEventGroupWaitBits(
- 8003ab0:	4b06      	ldr	r3, [pc, #24]	@ (8003acc <BMS_FaultTask+0x38>)
- 8003ab2:	6818      	ldr	r0, [r3, #0]
- 8003ab4:	f04f 33ff 	mov.w	r3, #4294967295
- 8003ab8:	9300      	str	r3, [sp, #0]
- 8003aba:	2300      	movs	r3, #0
- 8003abc:	2201      	movs	r2, #1
- 8003abe:	2101      	movs	r1, #1
- 8003ac0:	f005 f9be 	bl	8008e40 <xEventGroupWaitBits>
- 8003ac4:	e7f4      	b.n	8003ab0 <BMS_FaultTask+0x1c>
- 8003ac6:	bf00      	nop
- 8003ac8:	20000444 	.word	0x20000444
- 8003acc:	20000058 	.word	0x20000058
+ 8003ab4:	4b06      	ldr	r3, [pc, #24]	@ (8003ad0 <BMS_FaultTask+0x38>)
+ 8003ab6:	6818      	ldr	r0, [r3, #0]
+ 8003ab8:	f04f 33ff 	mov.w	r3, #4294967295
+ 8003abc:	9300      	str	r3, [sp, #0]
+ 8003abe:	2300      	movs	r3, #0
+ 8003ac0:	2201      	movs	r2, #1
+ 8003ac2:	2101      	movs	r1, #1
+ 8003ac4:	f005 f9bc 	bl	8008e40 <xEventGroupWaitBits>
+ 8003ac8:	e7f4      	b.n	8003ab4 <BMS_FaultTask+0x1c>
+ 8003aca:	bf00      	nop
+ 8003acc:	20000444 	.word	0x20000444
+ 8003ad0:	20000058 	.word	0x20000058
 
-08003ad0 <BMS_BalancingTask>:
+08003ad4 <BMS_BalancingTask>:
 
 
 }
 
 void BMS_BalancingTask(void const * argument)
 {
- 8003ad0:	b580      	push	{r7, lr}
- 8003ad2:	b084      	sub	sp, #16
- 8003ad4:	af02      	add	r7, sp, #8
- 8003ad6:	6078      	str	r0, [r7, #4]
+ 8003ad4:	b580      	push	{r7, lr}
+ 8003ad6:	b084      	sub	sp, #16
+ 8003ad8:	af02      	add	r7, sp, #8
+ 8003ada:	6078      	str	r0, [r7, #4]
 	// waits for BMS_Init to finish
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
- 8003ad8:	4b1d      	ldr	r3, [pc, #116]	@ (8003b50 <BMS_BalancingTask+0x80>)
- 8003ada:	6818      	ldr	r0, [r3, #0]
- 8003adc:	2101      	movs	r1, #1
- 8003ade:	f04f 33ff 	mov.w	r3, #4294967295
- 8003ae2:	9300      	str	r3, [sp, #0]
- 8003ae4:	2301      	movs	r3, #1
- 8003ae6:	2200      	movs	r2, #0
- 8003ae8:	f005 f9aa 	bl	8008e40 <xEventGroupWaitBits>
+ 8003adc:	4b1d      	ldr	r3, [pc, #116]	@ (8003b54 <BMS_BalancingTask+0x80>)
+ 8003ade:	6818      	ldr	r0, [r3, #0]
+ 8003ae0:	2101      	movs	r1, #1
+ 8003ae2:	f04f 33ff 	mov.w	r3, #4294967295
+ 8003ae6:	9300      	str	r3, [sp, #0]
+ 8003ae8:	2301      	movs	r3, #1
+ 8003aea:	2200      	movs	r2, #0
+ 8003aec:	f005 f9a8 	bl	8008e40 <xEventGroupWaitBits>
 	//vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));
 	// one-time setup
 	xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
- 8003aec:	4b19      	ldr	r3, [pc, #100]	@ (8003b54 <BMS_BalancingTask+0x84>)
- 8003aee:	681b      	ldr	r3, [r3, #0]
- 8003af0:	f04f 31ff 	mov.w	r1, #4294967295
- 8003af4:	4618      	mov	r0, r3
- 8003af6:	f005 fe4b 	bl	8009790 <xQueueSemaphoreTake>
+ 8003af0:	4b19      	ldr	r3, [pc, #100]	@ (8003b58 <BMS_BalancingTask+0x84>)
+ 8003af2:	681b      	ldr	r3, [r3, #0]
+ 8003af4:	f04f 31ff 	mov.w	r1, #4294967295
+ 8003af8:	4618      	mov	r0, r3
+ 8003afa:	f005 fe49 	bl	8009790 <xQueueSemaphoreTake>
 	balancing_init();
- 8003afa:	f7fd f9f9 	bl	8000ef0 <balancing_init>
+ 8003afe:	f7fd f9f7 	bl	8000ef0 <balancing_init>
 	balancing_update();
- 8003afe:	f7fd fa49 	bl	8000f94 <balancing_update>
+ 8003b02:	f7fd fa47 	bl	8000f94 <balancing_update>
 	xSemaphoreGive(UART_MUTEX);
- 8003b02:	4b14      	ldr	r3, [pc, #80]	@ (8003b54 <BMS_BalancingTask+0x84>)
- 8003b04:	6818      	ldr	r0, [r3, #0]
- 8003b06:	2300      	movs	r3, #0
- 8003b08:	2200      	movs	r2, #0
- 8003b0a:	2100      	movs	r1, #0
- 8003b0c:	f005 fc8e 	bl	800942c <xQueueGenericSend>
+ 8003b06:	4b14      	ldr	r3, [pc, #80]	@ (8003b58 <BMS_BalancingTask+0x84>)
+ 8003b08:	6818      	ldr	r0, [r3, #0]
+ 8003b0a:	2300      	movs	r3, #0
+ 8003b0c:	2200      	movs	r2, #0
+ 8003b0e:	2100      	movs	r1, #0
+ 8003b10:	f005 fc8c 	bl	800942c <xQueueGenericSend>
 
 	for (;;)
 	{
 
 		vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));  // 60 second delay
- 8003b10:	f64e 2060 	movw	r0, #60000	@ 0xea60
- 8003b14:	f006 fa30 	bl	8009f78 <vTaskDelay>
+ 8003b14:	f64e 2060 	movw	r0, #60000	@ 0xea60
+ 8003b18:	f006 fa2e 	bl	8009f78 <vTaskDelay>
 		if(charger_ON){
- 8003b18:	4b0f      	ldr	r3, [pc, #60]	@ (8003b58 <BMS_BalancingTask+0x88>)
- 8003b1a:	781b      	ldrb	r3, [r3, #0]
- 8003b1c:	b2db      	uxtb	r3, r3
- 8003b1e:	2b00      	cmp	r3, #0
- 8003b20:	d012      	beq.n	8003b48 <BMS_BalancingTask+0x78>
+ 8003b1c:	4b0f      	ldr	r3, [pc, #60]	@ (8003b5c <BMS_BalancingTask+0x88>)
+ 8003b1e:	781b      	ldrb	r3, [r3, #0]
+ 8003b20:	b2db      	uxtb	r3, r3
+ 8003b22:	2b00      	cmp	r3, #0
+ 8003b24:	d012      	beq.n	8003b4c <BMS_BalancingTask+0x78>
 			xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
- 8003b22:	4b0c      	ldr	r3, [pc, #48]	@ (8003b54 <BMS_BalancingTask+0x84>)
- 8003b24:	681b      	ldr	r3, [r3, #0]
- 8003b26:	f04f 31ff 	mov.w	r1, #4294967295
- 8003b2a:	4618      	mov	r0, r3
- 8003b2c:	f005 fe30 	bl	8009790 <xQueueSemaphoreTake>
+ 8003b26:	4b0c      	ldr	r3, [pc, #48]	@ (8003b58 <BMS_BalancingTask+0x84>)
+ 8003b28:	681b      	ldr	r3, [r3, #0]
+ 8003b2a:	f04f 31ff 	mov.w	r1, #4294967295
+ 8003b2e:	4618      	mov	r0, r3
+ 8003b30:	f005 fe2e 	bl	8009790 <xQueueSemaphoreTake>
 			balancing_update();
- 8003b30:	f7fd fa30 	bl	8000f94 <balancing_update>
+ 8003b34:	f7fd fa2e 	bl	8000f94 <balancing_update>
 			readBAL_STAT();
- 8003b34:	f7fd fb18 	bl	8001168 <readBAL_STAT>
+ 8003b38:	f7fd fb16 	bl	8001168 <readBAL_STAT>
 			xSemaphoreGive(UART_MUTEX);
- 8003b38:	4b06      	ldr	r3, [pc, #24]	@ (8003b54 <BMS_BalancingTask+0x84>)
- 8003b3a:	6818      	ldr	r0, [r3, #0]
- 8003b3c:	2300      	movs	r3, #0
- 8003b3e:	2200      	movs	r2, #0
- 8003b40:	2100      	movs	r1, #0
- 8003b42:	f005 fc73 	bl	800942c <xQueueGenericSend>
- 8003b46:	e7e3      	b.n	8003b10 <BMS_BalancingTask+0x40>
+ 8003b3c:	4b06      	ldr	r3, [pc, #24]	@ (8003b58 <BMS_BalancingTask+0x84>)
+ 8003b3e:	6818      	ldr	r0, [r3, #0]
+ 8003b40:	2300      	movs	r3, #0
+ 8003b42:	2200      	movs	r2, #0
+ 8003b44:	2100      	movs	r1, #0
+ 8003b46:	f005 fc71 	bl	800942c <xQueueGenericSend>
+ 8003b4a:	e7e3      	b.n	8003b14 <BMS_BalancingTask+0x40>
 		}
 		else
 		{
 			balancing_stop();
- 8003b48:	f7fd fb5a 	bl	8001200 <balancing_stop>
+ 8003b4c:	f7fd fb58 	bl	8001200 <balancing_stop>
 		vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));  // 60 second delay
- 8003b4c:	e7e0      	b.n	8003b10 <BMS_BalancingTask+0x40>
- 8003b4e:	bf00      	nop
- 8003b50:	20000444 	.word	0x20000444
- 8003b54:	20000448 	.word	0x20000448
- 8003b58:	20000491 	.word	0x20000491
- 8003b5c:	00000000 	.word	0x00000000
+ 8003b50:	e7e0      	b.n	8003b14 <BMS_BalancingTask+0x40>
+ 8003b52:	bf00      	nop
+ 8003b54:	20000444 	.word	0x20000444
+ 8003b58:	20000448 	.word	0x20000448
+ 8003b5c:	20000491 	.word	0x20000491
 
 08003b60 <BMS_CurrentSensorTask>:
  * @param [in]		- argument: Not Used
