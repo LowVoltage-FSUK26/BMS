@@ -809,6 +809,7 @@ void BMS_ChargerTask(void const * argument)
 
 void BMS_FaultTask(void const * argument)
 {
+	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
 	while(1)
 	{
@@ -830,19 +831,8 @@ void BMS_FaultTask(void const * argument)
 
 	}
 
-	BMS_Request_t req;
-	req.requester = xTaskGetCurrentTaskHandle();
-	req.cmd = CMD_READ_BRIDGE_FS;
-	uint8_t cmd_res = 0;
-	//todo Make timeout and Handling to this timeout
-	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-	for(;;)
-	{
-		xQueueSendToBack(bmsCmdQueue, &req, (TickType_t)10);
-		xTaskNotifyWait(0, NOTIFY_BMS_GOT_FS, NULL, pdMS_TO_TICKS(portMAX_DELAY));
-		//read fault_summary variable and handle it
-		vTaskDelay(pdMS_TO_TICKS(500));
-	}
+
+
 }
 
 void BMS_BalancingTask(void const * argument)
