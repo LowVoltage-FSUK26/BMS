@@ -17,7 +17,11 @@
 EventGroupHandle_t faultEventGroup;
 extern TaskHandle_t BmsChargerTaskHandle;
 extern uint8_t charger_ON;
-
+void SHUTDOWN(void) {
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
+	vTaskDelay(2000);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+}
 void Bridge_FaultInit(void)
 {
 	uint8_t bridge_faultMask = 0x00;   // Mask FTONE + HB + FCOMM
@@ -297,9 +301,7 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 			readReg(slaveID, FAULT_UV2, &uv2, 1, 100, FRMWRT_SGL_R); // cells 1-8
 
 			if (ov1 != 0x00 || ov2 != 0x00 ||uv1 != 0x00 || uv2 != 0x00) {
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
-				vTaskDelay(2000);
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+				SHUTDOWN();
 
 			} else {
 				writeReg(slaveID, FAULT_RST1, 0xFF, 1, FRMWRT_SGL_W);
@@ -311,6 +313,24 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 	/*************** OT / UT ***************/
 	if(slaveFaultSummary & SLAVE_FLT_OTUT)
 	{
+		uint8_t ot, ut;
+
+		readReg(slaveID, FAULT_OT, &ot, 1, 100, FRMWRT_SGL_R); // GPIO1-8
+		readReg(slaveID, FAULT_UT, &ut, 1, 100, FRMWRT_SGL_R); // GPIO1-8
+
+		if (ot != 0x00 || ut != 0x00) {
+			vTaskDelay(pdMS_TO_TICKS(1000));
+
+			readReg(slaveID, FAULT_OT, &ot, 1, 100, FRMWRT_SGL_R);
+			readReg(slaveID, FAULT_UT, &ut, 1, 100, FRMWRT_SGL_R);
+
+			if (ot != 0x00 || ut != 0x00) {
+				SHUTDOWN();
+
+			} else {
+				writeReg(slaveID, FAULT_RST1, 0xFF, 1, FRMWRT_SGL_W);
+			}
+		}
 
 		// Read FAULT_OT1/2 + FAULT_UT1/2
 	}
@@ -367,6 +387,8 @@ void handleAllFaults(void) {
 	for (int8_t s = SLAVEBOARDS; s >= 1; s--) {
 		Slave_CheckFaultSummary(s);
 	}
+	Bridge_CheckFaults();
+
 }
 TickType_t last_exti = 0;
 

@@ -70,7 +70,7 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	 */
 	if(activeThermistors==0)
 	{
-		writeReg(dev_address, BQ79616_GPIO_CONF1, 0x00, 1, FRMWRT_SGL_W);// Enable GPIO1 for thermistor
+		writeReg(dev_address, BQ79616_GPIO_CONF1, 0x00, 1, FRMWRT_SGL_W);
 		writeReg(dev_address, BQ79616_GPIO_CONF2, 0x00, 1, FRMWRT_SGL_W);
 		writeReg(dev_address, BQ79616_GPIO_CONF3, 0x00, 1, FRMWRT_SGL_W);
 		writeReg(dev_address, BQ79616_GPIO_CONF4, 0x00, 1, FRMWRT_SGL_W);

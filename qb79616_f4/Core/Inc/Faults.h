@@ -14,7 +14,7 @@ extern uint8_t slaveFaultS[SLAVEBOARDS];
 
 extern EventGroupHandle_t faultEventGroup;
 #define FAULT_EVENT_BIT   (1 << 0)
-
+void SHUTDOWN(void);
 void Bridge_FaultInit(void);
 void Bridge_CheckFaults(void);
 void Stack_FaultInit(void);
