@@ -19,4 +19,6 @@ void Bridge_FaultInit(void);
 void Bridge_CheckFaults(void);
 void Stack_FaultInit(void);
 void Stack_CheckFaultSummary(void);
+void readAllFaultSummaries(void);
+void handleAllFaults(void);
 #endif /* INC_FAULTS_H_ */

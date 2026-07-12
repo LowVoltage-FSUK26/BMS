@@ -20,7 +20,7 @@ uint16_t TsrefReadings[SLAVEBOARDS] = {0};
 float temperatures[SLAVEBOARDS][NUM_GPIOS] = {0.0f};
 
 
-uint8_t slaveGPIOCount[SLAVEBOARDS] = {2,1}; //  edit it for your configration
+uint8_t slaveGPIOCount[SLAVEBOARDS] = {5,0}; //  edit it for your configration
 
 
 
@@ -68,7 +68,14 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	writeReg(dev_address, BQ79616_GPIO_CONF2, gpioConf, 1, FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_GPIO_CONF3, gpioConf, 1, FRMWRT_SGL_W);
 	 */
-	if(activeThermistors==1)
+	if(activeThermistors==0)
+	{
+		writeReg(dev_address, BQ79616_GPIO_CONF1, 0x00, 1, FRMWRT_SGL_W);// Enable GPIO1 for thermistor
+		writeReg(dev_address, BQ79616_GPIO_CONF2, 0x00, 1, FRMWRT_SGL_W);
+		writeReg(dev_address, BQ79616_GPIO_CONF3, 0x00, 1, FRMWRT_SGL_W);
+		writeReg(dev_address, BQ79616_GPIO_CONF4, 0x00, 1, FRMWRT_SGL_W);
+	}
+	else if(activeThermistors==1)
 	{
 		writeReg(dev_address, BQ79616_GPIO_CONF1, 0x01, 1, FRMWRT_SGL_W);// Enable GPIO1 for thermistor
 		writeReg(dev_address, BQ79616_GPIO_CONF2, 0x00, 1, FRMWRT_SGL_W);

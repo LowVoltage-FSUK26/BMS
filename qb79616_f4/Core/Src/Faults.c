@@ -259,17 +259,8 @@ uint8_t slaveFaultS[SLAVEBOARDS];
 
 void Slave_CheckFaultSummary(uint8_t slaveID)
 {
-	uint8_t slaveFaultSummary = 0;
+	uint8_t slaveFaultSummary = slaveFaultS[slaveID-1];
 
-	/* Read FAULT SUMMARY */
-	readReg(slaveID,
-			FAULT_SUMMARY,
-			&slaveFaultSummary,
-			1,
-			100,
-			FRMWRT_SGL_R);
-
-	slaveFaultS[slaveID-1]=slaveFaultSummary ;
 	/* No Fault */
 	if(slaveFaultSummary == 0)
 	{
@@ -291,12 +282,30 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 	/*************** OV / UV ***************/
 	if(slaveFaultSummary & SLAVE_FLT_OVUV)
 	{
-		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
-		//		vTaskDelay(5000);
-		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-		//		vTaskDelay(5000);
+		uint8_t ov1, ov2,uv1, uv2;
 
-		// Read FAULT_OV1/2 + FAULT_UV1/2
+		readReg(slaveID, FAULT_OV1, &ov1, 1, 100, FRMWRT_SGL_R); // cells 9-16
+		readReg(slaveID, FAULT_OV2, &ov2, 1, 100, FRMWRT_SGL_R); // cells 1-8
+		readReg(slaveID, FAULT_UV1, &uv1, 1, 100, FRMWRT_SGL_R); // cells 9-16
+		readReg(slaveID, FAULT_UV2, &uv2, 1, 100, FRMWRT_SGL_R); // cells 1-8
+		if (ov1 != 0x00 || ov2 != 0x00 ||uv1 != 0x00 || uv2 != 0x00) {
+			vTaskDelay(pdMS_TO_TICKS(500));
+
+			readReg(slaveID, FAULT_OV1, &ov1, 1, 100, FRMWRT_SGL_R); // cells 9-16
+			readReg(slaveID, FAULT_OV2, &ov2, 1, 100, FRMWRT_SGL_R); // cells 1-8
+			readReg(slaveID, FAULT_UV1, &uv1, 1, 100, FRMWRT_SGL_R); // cells 9-16
+			readReg(slaveID, FAULT_UV2, &uv2, 1, 100, FRMWRT_SGL_R); // cells 1-8
+
+			if (ov1 != 0x00 || ov2 != 0x00 ||uv1 != 0x00 || uv2 != 0x00) {
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_RESET);
+				vTaskDelay(2000);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_12, GPIO_PIN_SET);
+
+			} else {
+				writeReg(slaveID, FAULT_RST1, 0xFF, 1, FRMWRT_SGL_W);
+			}
+			// Read FAULT_OV1/2 + FAULT_UV1/2
+		}
 	}
 
 	/*************** OT / UT ***************/
@@ -333,6 +342,7 @@ void Slave_CheckFaultSummary(uint8_t slaveID)
 	writeReg(slaveID, FAULT_RST1, 0xff, 1, FRMWRT_SGL_W);
 	writeReg(slaveID, FAULT_RST2, 0xff, 1, FRMWRT_SGL_W);
 }
+
 void Stack_CheckFaultSummary(void)
 {
 	for(uint8_t id = 1; id <= SLAVEBOARDS; id++)
@@ -341,6 +351,23 @@ void Stack_CheckFaultSummary(void)
 	}
 }
 
+
+void readAllFaultSummaries(void) {
+	// Read bridge fault summary
+	readReg(0, Bridge_FAULT_SUMMARY, &bridge_faultSummary, 1, 100, FRMWRT_SGL_R);
+
+	// Read each slave fault summary
+	for (uint8_t s = 1; s <= SLAVEBOARDS; s++) {
+		readReg(s, FAULT_SUMMARY, &slaveFaultS[s-1], 1, 100, FRMWRT_SGL_R);
+	}
+}
+
+void handleAllFaults(void) {
+	readAllFaultSummaries();
+	for (int8_t s = SLAVEBOARDS; s >= 1; s--) {
+		Slave_CheckFaultSummary(s);
+	}
+}
 TickType_t last_exti = 0;
 
 //nfault interrupt handling
@@ -367,12 +394,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_PIN)
 		{
 			charger_ON = 1;
 			vTaskNotifyGiveFromISR(
-							BmsChargerTaskHandle,
-							&xHigherPriorityTaskWoken
-					);
+					BmsChargerTaskHandle,
+					&xHigherPriorityTaskWoken
+			);
 
-					portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-					last_exti = xTaskGetTickCountFromISR();
+			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+			last_exti = xTaskGetTickCountFromISR();
 		}
 
 	}

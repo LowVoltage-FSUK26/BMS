@@ -64,8 +64,8 @@ all: main-build
 main-build: qb79616_f4.elf secondary-outputs
 
 # Tool invocations
-qb79616_f4.elf qb79616_f4.map: $(OBJS) $(USER_OBJS) D:\Mina\Racing\ Team\ Tasks\2025-2026\ Season\BMS_GitHub_Repo\BMS\qb79616_f4\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "qb79616_f4.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\Mina\Racing Team Tasks\2025-2026 Season\BMS_GitHub_Repo\BMS\qb79616_f4\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="qb79616_f4.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+qb79616_f4.elf qb79616_f4.map: $(OBJS) $(USER_OBJS) F:\MOHAMMED\ ESSAM\Low\ Voltage\ S2\BMS\qb79616_projects\qb79616_f4\STM32F446RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "qb79616_f4.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"F:\MOHAMMED ESSAM\Low Voltage S2\BMS\qb79616_projects\qb79616_f4\STM32F446RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="qb79616_f4.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

@@ -16,7 +16,7 @@ float cellVoltages_board_float[SLAVEBOARDS][16];
 
 
 
-uint8_t slaveCellCount[SLAVEBOARDS] = {14,13};//  edit it for your configration
+uint8_t slaveCellCount[SLAVEBOARDS] = {16,16};//  edit it for your configration
 
 
 
