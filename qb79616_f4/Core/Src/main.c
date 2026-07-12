@@ -649,7 +649,13 @@ void BMS_MonitorTask(void const * argument)
 		convertVoltages();
 
 		readBAL_STAT();
-		handleAllFaults();
+		if(current_read >= OV_CURRENT)
+		{
+			SHUTDOWN();
+		}
+		else {
+			handleAllFaults();
+		}
 		readAllFaultSummaries();
 
 		xSemaphoreGive(UART_MUTEX);////////////////////////////////////////////////
@@ -837,7 +843,7 @@ void BMS_CurrentSensorTask(void const * argument)
 
 		if(current_read >= OV_CURRENT)
 		{
-			xEventGroupSetBits(faultEventGroup, FAULT_EVENT_BIT);
+			//xEventGroupSetBits(faultEventGroup, FAULT_EVENT_BIT);
 		}
 		// 5. Rest for 20ms before starting the next batch
 		vTaskDelay(pdMS_TO_TICKS(100));
