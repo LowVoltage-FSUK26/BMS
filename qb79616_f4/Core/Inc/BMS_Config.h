@@ -32,6 +32,30 @@
 #define DEBUGUART			2
 #define BATTERYVOLT_ID		(TOTALBOARDS + (4 - (TOTALBOARDS % 4)))
 
+
+#define OV_THR 0x02     // chang it for actual battary to 0X22 (4.175v)
+						//0x22 to 0x2E: range from 4175 mV to 4475 mV
+
+
+#define UV_THR 0x00 	// chang it for actual battary to 0X1C (2.6v)
+						//0x00 to 0x26: range from 1200 mV to 3100 mV
+
+/*
+	UT_THR[2:0] =Sets the UT threshold for the UT comparator. Changes on these bits require host to send another [OTUT_GO] = 1
+	command. The MCU configures the corresponding GPIO(s) to ADC and OTUT input.
+	Range from 66% to 80% in steps of 2% sourced from TSREF regulator voltage.
+	Default Reset setting 80%.
+
+	OT_THR[4:0] =Sets the OT threshold for the OT comparator. Changes on these bits require host to send another [OTUT_GO] =
+	1 command. The MCU configures the corresponding GPIO(s) to ADC and OTUT input.
+	Range from 10% to 39% in steps of 1% sourced from TSREF regulator voltage.
+	Unused code defaults to 39%.
+	Default Reset setting 39%.
+ */
+#define UT_THR  0x07  //
+#define OT_THR  0x0D  // 55 C
+#define OTUT_THR  ((UT_THR<<5)|OT_THR)
+
 #define VOLT_CONV		0.00019073
 #define GUI
 
@@ -65,7 +89,7 @@
 /* ------------------------------------
      CAN Charger MACROS
    ------------------------------------
-*/
+ */
 #define CHAR_MAX_VOLT			1700		//0.1V/byte  offset:0  e.g. Vset=3201, its corresponding 320.1V
 #define CHAR_MAX_VOLT_High		((CHAR_MAX_VOLT & 0xFF00) >> 8)
 #define CHAR_MAX_VOLT_low		(CHAR_MAX_VOLT & 0x00FF)
@@ -82,7 +106,7 @@
 /* ------------------------------------
      Current Sensor MACROS
    ------------------------------------
-*/
+ */
 #define HASS_50_S_Vof 	2.5
 #define HASS_50_S_IPN  	50
 #define NUM_SAMPLES 	10
@@ -95,10 +119,10 @@
  */
 typedef enum
 {
-  BMS_OK       = 0x00U,
-  BMS_ERROR    = 0x01U,
-  BMS_BUSY     = 0x02U,
-  BMS_TIMEOUT  = 0x03U
+	BMS_OK       = 0x00U,
+	BMS_ERROR    = 0x01U,
+	BMS_BUSY     = 0x02U,
+	BMS_TIMEOUT  = 0x03U
 } BMS_StatusTypeDef;
 
 typedef union
@@ -108,7 +132,7 @@ typedef union
 	struct {
 
 		uint16_t slave[4];	//Total Voltage/TEMP of each slave
-							//In case of last frame in chain, It holds TOTAL Battery Voltage/TEMP
+		//In case of last frame in chain, It holds TOTAL Battery Voltage/TEMP
 	} frame;
 
 } BMS_CAN_Frame_t;
@@ -152,8 +176,8 @@ typedef union //to be used in future
 
 typedef enum
 {
-    BMS_DATA_VOLTAGE = 0,
-    BMS_DATA_TEMPERATURE = 1,
+	BMS_DATA_VOLTAGE = 0,
+	BMS_DATA_TEMPERATURE = 1,
 	BMS_CHARGER = 2
 
 } BMS_DataType_t;
@@ -161,8 +185,8 @@ typedef enum
 typedef struct
 {
 	int16_t value;
-    uint8_t slave_id;
-    uint8_t  _pad;
+	uint8_t slave_id;
+	uint8_t  _pad;
 
 } BMS_Queue_Measurement_t;
 

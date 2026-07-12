@@ -55,7 +55,7 @@ uint8_t configure_OTUT(uint8_t dev_address, uint8_t activeThermistors){
 	uint8_t gpioConf= 0x09; //for simplicity enable all gpio thermistors
 
 	//set UT and OT thresholds
-	writeReg(dev_address, BQ79616_OTUT_THRESH, ot_ut ,1 , FRMWRT_SGL_W);
+	writeReg(dev_address, BQ79616_OTUT_THRESH, OTUT_THR ,1 , FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_OTCB_THRESH, cb_coolOff ,1 , FRMWRT_SGL_W);
 
 	//enable TSERF
