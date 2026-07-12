@@ -144,6 +144,15 @@ void readBAL_STAT(void) {
 		CB_CompleteReadings[s-1] = ((uint16_t)raw1 << 8) | raw2;
 	}
 }
+
+void balancing_stop(void) {
+    for (uint8_t c = 0; c < 16; c++) {
+        writeReg(0, BQ79616_CB_CELL_CTRL_01 - c, 0x00, 1, FRMWRT_STK_W);
+    }
+    writeReg(0, BQ79616_BAL_CTRL2, BAL_CTRL2_RUN, 1, FRMWRT_STK_W);
+}
+
+
 BAL_STAT_t parse_BAL_STAT(uint8_t raw)
 {
 	BAL_STAT_t stat;

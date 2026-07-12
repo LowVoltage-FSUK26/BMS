@@ -771,8 +771,8 @@ void BMS_FaultTask(void const * argument)
 		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);
 		//		vTaskDelay(1000);
 		//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET);
-		vTaskDelay(1000);
-		Send_GUI_Reading ();
+		//vTaskDelay(1000);
+		//Send_GUI_Reading ();
 
 	}
 
@@ -793,12 +793,18 @@ void BMS_BalancingTask(void const * argument)
 
 	for (;;)
 	{
-		vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));  // 60 second delay
 
-		xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
-		balancing_update();
-		readBAL_STAT();
-		xSemaphoreGive(UART_MUTEX);
+		vTaskDelay(pdMS_TO_TICKS(BAL_LOOP_DELAY_MS));  // 60 second delay
+		if(charger_ON){
+			xSemaphoreTake(UART_MUTEX, portMAX_DELAY);
+			balancing_update();
+			readBAL_STAT();
+			xSemaphoreGive(UART_MUTEX);
+		}
+		else
+		{
+			balancing_stop();
+		}
 	}
 }
 

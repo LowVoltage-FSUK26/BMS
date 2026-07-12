@@ -32,4 +32,5 @@ void balancing_init(void);
 void balancing_update(void);
 void readBAL_STAT(void);
 BAL_STAT_t parse_BAL_STAT(uint8_t raw);
+void balancing_stop(void);
 #endif /* INC_BALANCING_H_ */
