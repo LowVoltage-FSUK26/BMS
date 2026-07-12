@@ -635,12 +635,12 @@ void BMS_Init(void const * argument)
 	for(uint8_t i = 1; i < TOTALBOARDS; i++)
 	{
 
-		if(configure_OVUV(i, 16) != 1)
+		if(configure_OVUV(i, slaveCellCount[i-1]) != 1)
 		{
 			//error
 			while(1);
 		}
-		if(configure_OTUT(i, 0) != 1)
+		if(configure_OTUT(i, slaveGPIOCount[i-1]) != 1)
 		{
 			//error
 			while(1);

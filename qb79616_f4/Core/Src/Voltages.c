@@ -12,8 +12,15 @@
 #include "Voltages.h"
 uint16_t cellVoltages_board[SLAVEBOARDS][16] = {0};
 float cellVoltages_board_float[SLAVEBOARDS][16];
-// BMS_Config.c
-uint8_t slaveCellCount[SLAVEBOARDS] = {16,16 };
+
+
+
+
+uint8_t slaveCellCount[SLAVEBOARDS] = {14,13};//  edit it for your configration
+
+
+
+
 void initSlaveCellCount(void) {
     for (uint8_t s = 0; s < SLAVEBOARDS; s++) {
         if (s % 2 == 0) {
@@ -31,6 +38,7 @@ uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 	//set active cells number
 	writeReg(dev_address, BQ79616_ACTIVE_CELL, activeCells - 6, 1, FRMWRT_SGL_W);
 	//set OV and UV thresholds
+
 	writeReg(dev_address, BQ79616_OV_THRESH, OV_THR, 1, FRMWRT_SGL_W);
 	writeReg(dev_address, BQ79616_UV_THRESH, UV_THR, 1, FRMWRT_SGL_W);
 
