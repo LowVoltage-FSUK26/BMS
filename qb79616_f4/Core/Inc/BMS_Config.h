@@ -152,13 +152,6 @@ typedef union //to be used in future
 } CHARGER_CAN_Frame_t;
 
 //---------------------
-//RTOS Design MODE
-//---------------------
-
-//#define SIMPLETASK
-#define EVENT_GROUP
-
-//---------------------
 //RTOS MACROS
 //--------------------
 #define NOTIFY_BMS_INIT_DONE   		(1U << 0)

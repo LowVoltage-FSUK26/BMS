@@ -84,11 +84,7 @@ extern uint8_t bridge_faultCOMM2;
 //TaskHandle_t defaultTaskHandle;
 
 TaskHandle_t BmsInitTaskHandle;
-TaskHandle_t BmsCanTxTaskHandle;
 TaskHandle_t BmsMonitorTaskHandle;
-TaskHandle_t BmsCommandTaskHandle;
-TaskHandle_t BmsCellVoltageTaskHandle;
-TaskHandle_t BmsReadTempTaskHandle;
 TaskHandle_t BmsFaultTaskHandle;
 TaskHandle_t BmsBalancingTaskHandle;
 TaskHandle_t BmsGUITaskHandle;
@@ -100,42 +96,18 @@ TaskHandle_t BmsCurrentSensorTaskHandle;
 //----------------
 const EventBits_t BMS_INIT_DONE_BIT = (1 << 0);
 
-//todo Make a global event bit variable that holds all initialization bits
-
 EventGroupHandle_t BMS_EventGroup;
-
-//----------------
-//RTOS Queues
-//----------------
-
-QueueHandle_t bmsCanTXQueue;
-QueueHandle_t bmsCmdQueue;
-//QueueHandle_t bmsMeasurmentsQueue;
-QueueHandle_t bmsVoltageQueue;
-QueueHandle_t bmsTempQueue;
 
 
 //----------------
 //RTOS MUTEX
 //----------------
-#ifdef EVENT_GROUP
 SemaphoreHandle_t UART_MUTEX;
-#endif
-
 SemaphoreHandle_t CAN_MUTEX;
 
 //Private user Variables
-uint8_t received_data = 0;
-uint8_t Buffer[5];
-
 uint8_t init_done = 0;
-
 float battery_volt = 0;
-
-
-
-
-UBaseType_t uxHighWaterMark;
 extern EventGroupHandle_t uartEventGroup;
 
 //------------------------
@@ -184,19 +156,11 @@ void BMS_Init(void const * argument);
 
 //A Task that periodically pull Cell voltage and Temperature reading
 void BMS_MonitorTask(void const * argument);
-//Receives Command in a Queue and Sends Commands to Daisy chains on demand
-void BMS_CommadTask(void const * argument);
-//Sends a read voltage cmd to BMS queue to read cell voltages
-void BMS_CellVoltageTask(void const * argument);
-//Sends a read voltage cmd to BMS queue to read cell temp
-void BMS_ReadTempTask(void const * argument);
 
 //Activated by an Event group to trigger shutdown circuit and Handle fault
 void BMS_FaultTask(void const * argument);
 
 void BMS_BalancingTask(void const * argument);
-
-void BMS_CanTX_Task(void const * argument);
 
 void BMS_ChargerTask(void const * argument);
 
@@ -209,26 +173,6 @@ void BMS_CurrentSensorTask(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-//function that converts the data according to the type
-//Funtion outputs the value x100 to take only 2 numbers after the decimal point
-int16_t BMS_data_convert(BMS_DataType_t type, int data)
-{
-	switch(type)
-	{
-	case BMS_DATA_VOLTAGE:
-		data = (int16_t)((float)(data) * VOLT_CONV * 100);
-		break;
-	case BMS_DATA_TEMPERATURE:
-		data = (int16_t)(((float)(data) * VLSB_GPIO) * 100);
-		break;
-	case BMS_CHARGER:
-		data = (int16_t)((float)(data) / 10);
-		break;
-	}
-
-	return data;
-}
 
 
 /* USER CODE END 0 */
@@ -281,13 +225,6 @@ int main(void)
 	/* Create Event Group */
 	uartEventGroup = xEventGroupCreate();
 	faultEventGroup = xEventGroupCreate();
-	//==================Define Queues===================//
-
-	bmsVoltageQueue = xQueueCreate(MAX(1, SLAVEBOARDS * 7), sizeof(BMS_Queue_Measurement_t));
-	bmsCmdQueue = xQueueCreate(5, sizeof(BMS_Request_t));
-	bmsTempQueue = xQueueCreate(MAX(1, SLAVEBOARDS * 7), sizeof(BMS_Queue_Measurement_t));
-	bmsCanTXQueue = xQueueCreate(10, sizeof(BMS_CAN_Queue_Message_t));
-
 
 	//==================Define MUTEX===================//
 	UART_MUTEX = xSemaphoreCreateMutex();
@@ -696,7 +633,6 @@ void BMS_GUI_Task(void const * argument)
 void BMS_MonitorTask(void const * argument)
 {
 
-	BMS_Queue_Measurement_t buffer;
 	//todo Make timeout and Handling to this timeout
 	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 	for(;;)
@@ -737,7 +673,6 @@ void BMS_ChargerTask(void const * argument)
 	BMS_CHAR_CAN_TxHandler.StdId = 0x00;               //Message ID
 	BMS_CHAR_CAN_TxHandler.ExtId = CAN_BMS_TO_CH;      //Message ID extension for CAN extend
 	BMS_CHAR_CAN_TxHandler.IDE = CAN_ID_EXT;             //CAN ID is 11 bits
-//	xEventGroupWaitBits(BMS_EventGroup, BMS_INIT_DONE_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
 
 	while(1)
 	{
@@ -751,7 +686,7 @@ void BMS_ChargerTask(void const * argument)
 		while(1)
 		{
 
-//			Check charger communication timeout
+			//Check charger communication timeout
 			current_tick = xTaskGetTickCount();
 			if((current_tick - charger_last_rx_time) > pdMS_TO_TICKS(5000))
 			{
@@ -908,7 +843,6 @@ void BMS_CurrentSensorTask(void const * argument)
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
-	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
 	//Not check on ID, As Can filter only receives charger frames
 	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &BMS_CAN_RxHandler, BMS_CAN_RxData.bytes) == HAL_OK)
