@@ -14,6 +14,27 @@ BRIDGE_NAME = "S0"
 SLAVE_NAMES = [f"S{i}" for i in range(1, NUM_SLAVES + 1)]
 ALL_MODULES = [BRIDGE_NAME] + SLAVE_NAMES
 
+# Real per-slave cell/GPIO counts — mirrors slaveCellCount[]/slaveGPIOCount[]
+# in Voltages.c/Temperatures.c. The wire frame always carries 16 cell fields
+# and NUM_GPIOS fields for every board regardless of its real count (the
+# firmware never trims the frame), so slots beyond a board's real count are
+# padding, not live readings. Keep this in sync with the firmware arrays if
+# the physical layout changes.
+_CELL_COUNT_BY_INDEX = [
+    13, 14, 14, 13, 13, 14, 14, 13,
+    13, 14, 14, 13, 13, 14, 14, 13,
+    13, 14, 14, 13, 13, 14, 14, 13,
+    13, 14, 14, 13, 13, 14, 14, 13,
+]
+_GPIO_COUNT_BY_INDEX = [
+    5, 4, 4, 5, 5, 4, 4, 5,
+    5, 4, 4, 5, 5, 4, 4, 5,
+    5, 4, 4, 5, 5, 4, 4, 5,
+    5, 4, 4, 5, 5, 4, 4, 5,
+]
+SLAVE_CELL_COUNT = dict(zip(SLAVE_NAMES, _CELL_COUNT_BY_INDEX))
+SLAVE_GPIO_COUNT = dict(zip(SLAVE_NAMES, _GPIO_COUNT_BY_INDEX))
+
 # =========================================
 # UART Setup
 # =========================================
@@ -214,31 +235,41 @@ def update_gui():
     pack_total = 0
     for slave in uart_data:
         if slave != BRIDGE_NAME:
+            num_cells = SLAVE_CELL_COUNT[slave]
+            num_gpio  = SLAVE_GPIO_COUNT[slave]
+
             hex_cells   = uart_data[slave]["cells"].split(",")
             cell_values = [hex_to_cell_voltage(h) for h in hex_cells]
-            slave_total = sum(cell_values)
+            slave_total = sum(cell_values[:num_cells])
             pack_total += slave_total
 
             slave_total_labels[slave].config(
                 text=f"▸  {slave}  {slave_total:.3f} V"
             )
             for i in range(16):
-                v = cell_values[i]
-                color = (COLORS["accent_red"] if v < 2.8 or v > 4.2
-                         else COLORS["accent_yellow"] if v < 3.0
-                         else COLORS["accent_green"])
-                cell_labels[slave][i].config(
-                    text=f"C{i+1:02d}\n{v:.3f}V",
-                    fg=color
-                )
+                if i < num_cells:
+                    v = cell_values[i]
+                    color = (COLORS["accent_red"] if v < 2.8 or v > 4.2
+                             else COLORS["accent_yellow"] if v < 3.0
+                             else COLORS["accent_green"])
+                    text = f"C{i+1:02d}\n{v:.3f}V"
+                else:
+                    color = COLORS["text_muted"]
+                    text = f"C{i+1:02d}\nN/A"
+                cell_labels[slave][i].config(text=text, fg=color)
             hex_gpio    = uart_data[slave]["gpio"].split(",")
             hex_tsref   = uart_data[slave]["tsref"]
             temp_values = [raw_to_temp_c(h, hex_tsref) for h in hex_gpio]
             for i, temp_c in enumerate(temp_values):
-                color = (COLORS["accent_red"] if temp_c >= TEMP_LIMIT_C
-                         else COLORS["accent_green"])
+                if i < num_gpio:
+                    color = (COLORS["accent_red"] if temp_c >= TEMP_LIMIT_C
+                             else COLORS["accent_green"])
+                    text = f"GPIO{i+1}  {temp_c:.1f} °C"
+                else:
+                    color = COLORS["text_muted"]
+                    text = f"GPIO{i+1}  N/A"
                 gpio_labels[slave][i].config(
-                    text=f"GPIO{i+1}  {temp_c:.1f} °C",
+                    text=text,
                     bg=color
                 )
 
