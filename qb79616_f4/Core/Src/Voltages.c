@@ -16,20 +16,18 @@ float cellVoltages_board_float[SLAVEBOARDS][16];
 
 
 
-uint8_t slaveCellCount[SLAVEBOARDS] = {16,16};//  edit it for your configration
+// index = slave number (0 = first slave after the bridge), value = active cell count for that slave
+uint8_t slaveCellCount[SLAVEBOARDS] = {
+	//  0   1   2   3   4   5   6   7
+	   13, 14, 14, 13, 13, 14, 14, 13,
+	//  8   9  10  11  12  13  14  15
+	   13, 14, 14, 13, 13, 14, 14, 13,
+	// 16  17  18  19  20  21  22  23
+	   13, 14, 14, 13, 13, 14, 14, 13,
+	// 24  25  26  27  28  29  30  31
+	   13, 14, 14, 13, 13, 14, 14, 13
+};
 
-
-
-
-void initSlaveCellCount(void) {
-    for (uint8_t s = 0; s < SLAVEBOARDS; s++) {
-        if (s % 2 == 0) {
-            slaveCellCount[s] = 14;  // even index = 14 cells
-        } else {
-            slaveCellCount[s] = 13;  // odd index  = 13 cells
-        }
-    }
-}
 uint8_t configure_OVUV(uint8_t dev_address , uint8_t activeCells){
 
 	uint8_t dev_stat;

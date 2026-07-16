@@ -1,13 +1,15 @@
 import tkinter as tk
 from tkinter import ttk, font as tkfont
 import serial
+import time
 
 # =========================================
 # Configuration
 # =========================================
-NUM_SLAVES = 2
+NUM_SLAVES = 32
 NUM_GPIOS = 5  # must match NUM_GPIOS in Temperatures.h
 TEMP_LIMIT_C = 45.0  # must match TEMP_LIMIT in bq79616.h
+STALE_THRESHOLD_SEC = 5.0  # grace period before a quiet slave is flagged stale
 BRIDGE_NAME = "S0"
 SLAVE_NAMES = [f"S{i}" for i in range(1, NUM_SLAVES + 1)]
 ALL_MODULES = [BRIDGE_NAME] + SLAVE_NAMES
@@ -65,6 +67,10 @@ for s in SLAVE_NAMES:
         "fault": "00"
     }
 uart_data[BRIDGE_NAME] = {"fault": "0"}
+
+# Timestamp of the last successfully parsed line per module; used to flag
+# stale slaves. Absent entry means "never seen yet" (not the same as stale).
+last_seen = {}
 
 # =========================================
 # GUI Storage
@@ -178,24 +184,28 @@ def parse_uart_line(line):
             uart_data[slave]["gpio"]  = parts[2]
             uart_data[slave]["tsref"] = parts[3]
             uart_data[slave]["fault"] = parts[4]
+            last_seen[slave] = time.time()
     else:
         if len(parts) >= 2:
             uart_data[slave]["fault"] = parts[1]
-    update_gui()
+            last_seen[slave] = time.time()
 
 # =========================================
 # UART Reader
 # =========================================
 def read_uart():
-    latest_line = None
+    got_data = False
     while ser.in_waiting:
         try:
-            latest_line = ser.readline().decode().strip()
+            line = ser.readline().decode().strip()
         except Exception:
-            pass
-    if latest_line:
-        parse_uart_line(latest_line)
-    root.after(100, read_uart)
+            break
+        if line:
+            parse_uart_line(line)
+            got_data = True
+    if got_data:
+        update_gui()
+    root.after(50, read_uart)
 
 # =========================================
 # Update GUI
@@ -262,6 +272,23 @@ def update_gui():
     pack_total_label.config(
         text=f"⚡  PACK TOTAL  {pack_total:.3f} V"
     )
+
+# =========================================
+# Stale Slave Indicator
+# =========================================
+# Runs on its own timer (independent of UART arrivals) so a slave that's
+# gone completely silent still gets flagged, not just ones still sending.
+# Dims the pill text rather than a hard error color/label — a slave that's
+# a beat late is normal at this cadence, not necessarily a fault.
+def check_staleness():
+    now = time.time()
+    for slave in SLAVE_NAMES:
+        seen = last_seen.get(slave)
+        is_stale = seen is not None and (now - seen) > STALE_THRESHOLD_SEC
+        slave_total_labels[slave].config(
+            fg=COLORS["text_muted"] if is_stale else COLORS["accent_blue"]
+        )
+    root.after(1000, check_staleness)
 
 # =========================================
 # Utility: Rounded-look card frame
@@ -404,10 +431,12 @@ tk.Frame(totals_inner, bg=COLORS["border"], height=1).grid(
 slave_row_frame = tk.Frame(totals_inner, bg=COLORS["bg_card"])
 slave_row_frame.grid(row=2, column=0)
 
+TOTALS_COLS_PER_ROW = 8
 for i, s in enumerate(SLAVE_NAMES):
-    slave_row_frame.columnconfigure(i, weight=1, minsize=200)
+    row, col = divmod(i, TOTALS_COLS_PER_ROW)
+    slave_row_frame.columnconfigure(col, weight=1, minsize=200)
     pill = tk.Frame(slave_row_frame, bg=COLORS["bg_cell"], padx=16, pady=8)
-    pill.grid(row=0, column=i, padx=10)
+    pill.grid(row=row, column=col, padx=10, pady=6)
     lbl = tk.Label(
         pill,
         text=f"▸  {s}  0.000 V",
@@ -438,15 +467,17 @@ tk.Label(
 btn_row = tk.Frame(btn_inner, bg=COLORS["bg_card"])
 btn_row.grid(row=1, column=0)
 
+BTN_COLS_PER_ROW = 8
 for i, s in enumerate(ALL_MODULES):
-    btn_row.columnconfigure(i, weight=1)
+    row, col = divmod(i, BTN_COLS_PER_ROW)
+    btn_row.columnconfigure(col, weight=1)
     ttk.Button(
         btn_row,
         text=f"Toggle  {s}",
         command=lambda name=s: toggle_slave(name),
         width=16,
         style="TButton"
-    ).grid(row=0, column=i, padx=6)
+    ).grid(row=row, column=col, padx=6, pady=4)
 
 # =========================================
 # ── Section: Slave Frames ────────────────
@@ -601,4 +632,5 @@ tk.Label(
 # Start UART Reading
 # =========================================
 read_uart()
+check_staleness()
 root.mainloop()

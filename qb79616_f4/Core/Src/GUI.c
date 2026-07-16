@@ -35,8 +35,12 @@ void UART_Send_Board_Frame_CharByChar(uint8_t board_num)
 	char temp[5];
 	// ----- S + board number -----
 	HAL_UART_Transmit(&huart4, (uint8_t*)"S", 1, HAL_MAX_DELAY);
-	char board_char = '0' + (board_num); // S1, S2 ...
-	HAL_UART_Transmit(&huart4, (uint8_t*)&board_char, 1, HAL_MAX_DELAY);
+	char board_str[3];
+	uint8_t board_len = 0;
+	if(board_num >= 10)
+		board_str[board_len++] = '0' + (board_num / 10);
+	board_str[board_len++] = '0' + (board_num % 10);
+	HAL_UART_Transmit(&huart4, (uint8_t*)board_str, board_len, HAL_MAX_DELAY);
 
 	// ----- Separator -----
 	HAL_UART_Transmit(&huart4, (uint8_t*)"|", 1, HAL_MAX_DELAY);
@@ -105,7 +109,7 @@ void Send_GUI_Reading (void)
 	for(uint8_t i=0;i<TOTALBOARDS;i++)
 	{
 		UART_Send_Board_Frame_CharByChar(i);
-		vTaskDelay(pdMS_TO_TICKS(1000));
+		vTaskDelay(pdMS_TO_TICKS(50));
 	}
 
 }

@@ -20,7 +20,17 @@ uint16_t TsrefReadings[SLAVEBOARDS] = {0};
 float temperatures[SLAVEBOARDS][NUM_GPIOS] = {0.0f};
 
 
-uint8_t slaveGPIOCount[SLAVEBOARDS] = {5,0}; //  edit it for your configration
+// index = slave number (0 = first slave after the bridge), value = active thermistor/GPIO count for that slave
+uint8_t slaveGPIOCount[SLAVEBOARDS] = {
+	// 0  1  2  3  4  5  6  7
+	   5, 4, 4, 5, 5, 4, 4, 5,
+	// 8  9 10 11 12 13 14 15
+	   5, 4, 4, 5, 5, 4, 4, 5,
+	//16 17 18 19 20 21 22 23
+	   5, 4, 4, 5, 5, 4, 4, 5,
+	//24 25 26 27 28 29 30 31
+	   5, 4, 4, 5, 5, 4, 4, 5
+};
 
 
 
