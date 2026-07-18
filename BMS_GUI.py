@@ -1,12 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, font as tkfont
 import serial
+from serial.tools import list_ports
 import time
 
 # =========================================
 # Configuration
 # =========================================
-NUM_SLAVES = 32
+NUM_SLAVES = 24
 NUM_GPIOS = 5  # must match NUM_GPIOS in Temperatures.h
 TEMP_LIMIT_C = 45.0  # must match TEMP_LIMIT in bq79616.h
 STALE_THRESHOLD_SEC = 5.0  # grace period before a quiet slave is flagged stale
@@ -20,14 +21,13 @@ ALL_MODULES = [BRIDGE_NAME] + SLAVE_NAMES
 # firmware never trims the frame), so slots beyond a board's real count are
 # padding, not live readings. Keep this in sync with the firmware arrays if
 # the physical layout changes.
+# 3 segments of 8 slaves; each segment repeats the same 13/14 and 5/4 layout
 _CELL_COUNT_BY_INDEX = [
-    13, 14, 14, 13, 13, 14, 14, 13,
     13, 14, 14, 13, 13, 14, 14, 13,
     13, 14, 14, 13, 13, 14, 14, 13,
     13, 14, 14, 13, 13, 14, 14, 13,
 ]
 _GPIO_COUNT_BY_INDEX = [
-    5, 4, 4, 5, 5, 4, 4, 5,
     5, 4, 4, 5, 5, 4, 4, 5,
     5, 4, 4, 5, 5, 4, 4, 5,
     5, 4, 4, 5, 5, 4, 4, 5,
@@ -38,7 +38,95 @@ SLAVE_GPIO_COUNT = dict(zip(SLAVE_NAMES, _GPIO_COUNT_BY_INDEX))
 # =========================================
 # UART Setup
 # =========================================
-ser = serial.Serial("COM4", 9600, timeout=1)
+PREFERRED_PORT = "COM19"
+BAUD_RATE = 9600
+ser = None  # opened once a root window exists, via connect_serial()
+
+
+def _available_ports():
+    return list_ports.comports()
+
+
+def connect_serial(root, preferred_port=PREFERRED_PORT, baud=BAUD_RATE):
+    """Open `preferred_port` (hardcoded — see PREFERRED_PORT), or fall back
+    to a manual picker dialog.
+
+    Deliberately does NOT auto-try other enumerated ports: this machine also
+    has virtual com0com-style ports (COM12/COM13) that always open
+    successfully but never carry real BMS data, so blind auto-fallback would
+    silently "connect" to the wrong port instead of showing zero volts and
+    an obvious no-data warning. Calls serial.Serial(preferred_port, ...)
+    directly (rather than checking it against the enumerated port list
+    first) so test_gui_simulator.py's serial.Serial monkeypatch still
+    short-circuits this like it did before this connect logic existed.
+    """
+    print(f"[BMS] Trying preferred port {preferred_port} @ {baud} baud...")
+    try:
+        s = serial.Serial(preferred_port, baud, timeout=1)
+        print(f"[BMS] Connected to {preferred_port}")
+        return s
+    except serial.SerialException as e:
+        print(f"[BMS] {preferred_port} unavailable: {e}")
+
+    print("[BMS] Opening port picker for manual selection.")
+    return _prompt_for_port(root, baud)
+
+
+def _prompt_for_port(root, baud):
+    dialog = tk.Toplevel(root)
+    dialog.title("Connect BMS")
+    dialog.configure(bg=COLORS["bg_root"])
+    dialog.resizable(False, False)
+    dialog.transient(root)
+    dialog.grab_set()
+
+    result = {"ser": None}
+
+    tk.Label(dialog, text="Select the BMS serial port:",
+             bg=COLORS["bg_root"], fg=COLORS["text_primary"],
+             font=("Segoe UI", 11)).pack(padx=20, pady=(20, 8))
+
+    combo = ttk.Combobox(dialog, state="readonly", width=45)
+    combo.pack(padx=20, pady=4)
+
+    status_var = tk.StringVar(value="")
+    tk.Label(dialog, textvariable=status_var, wraplength=340, justify="left",
+             bg=COLORS["bg_root"], fg=COLORS["accent_red"],
+             font=("Segoe UI", 9)).pack(padx=20, pady=(4, 8))
+
+    def refresh():
+        ports = _available_ports()
+        values = [f"{p.device} — {p.description}" for p in ports]
+        combo["values"] = values
+        if values:
+            combo.current(0)
+            status_var.set("")
+        else:
+            status_var.set("No serial devices found. Plug in the adapter and rescan.")
+
+    def do_connect():
+        idx = combo.current()
+        if idx < 0:
+            status_var.set("No port selected.")
+            return
+        device = _available_ports()[idx].device
+        try:
+            result["ser"] = serial.Serial(device, baud, timeout=1)
+            print(f"[BMS] Connected to {device} (user-selected)")
+            dialog.destroy()
+        except serial.SerialException as e:
+            print(f"[BMS] {device} unavailable: {e}")
+            status_var.set(f"Could not open {device}: {e}")
+
+    btn_row = tk.Frame(dialog, bg=COLORS["bg_root"])
+    btn_row.pack(padx=20, pady=(0, 20))
+    tk.Button(btn_row, text="Rescan", command=refresh).pack(side="left", padx=4)
+    tk.Button(btn_row, text="Connect", command=do_connect).pack(side="left", padx=4)
+    tk.Button(btn_row, text="Exit", command=dialog.destroy).pack(side="left", padx=4)
+
+    refresh()
+    dialog.wait_window()
+    return result["ser"]
 
 # =========================================
 # Design Tokens
@@ -195,9 +283,11 @@ def toggle_slave(slave_name):
 def parse_uart_line(line):
     parts = line.split("|")
     if len(parts) < 2:
+        print(f"[BMS] Ignoring malformed line: {line!r}")
         return
     slave = parts[0]
     if slave not in uart_data:
+        print(f"[BMS] Ignoring line for unknown module {slave!r}: {line!r}")
         return
     if slave != BRIDGE_NAME:
         if len(parts) >= 5:
@@ -206,26 +296,47 @@ def parse_uart_line(line):
             uart_data[slave]["tsref"] = parts[3]
             uart_data[slave]["fault"] = parts[4]
             last_seen[slave] = time.time()
+        else:
+            print(f"[BMS] {slave}: expected >=5 fields, got {len(parts)}: {line!r}")
     else:
         if len(parts) >= 2:
             uart_data[slave]["fault"] = parts[1]
             last_seen[slave] = time.time()
+        else:
+            print(f"[BMS] {slave}: expected >=2 fields, got {len(parts)}: {line!r}")
 
 # =========================================
 # UART Reader
 # =========================================
+_last_rx_time = None
+_last_no_data_warn = 0.0
+_uart_start_time = None
+
 def read_uart():
+    global _last_rx_time, _last_no_data_warn, _uart_start_time
+    if _uart_start_time is None:
+        _uart_start_time = time.time()
     got_data = False
     while ser.in_waiting:
         try:
             line = ser.readline().decode().strip()
-        except Exception:
+        except Exception as e:
+            print(f"[BMS] Read/decode error: {e}")
             break
         if line:
+            print(f"[UART] {line}")
             parse_uart_line(line)
             got_data = True
+            _last_rx_time = time.time()
     if got_data:
         update_gui()
+    else:
+        now = time.time()
+        no_data_for = now - _last_rx_time if _last_rx_time else now - _uart_start_time
+        if no_data_for >= 3.0 and now - _last_no_data_warn >= 3.0:
+            print(f"[BMS] No UART data received in {no_data_for:.1f}s "
+                  f"(port={ser.port}, baud={ser.baudrate}) — check wiring/baud rate/COM port.")
+            _last_no_data_warn = now
     root.after(50, read_uart)
 
 # =========================================
@@ -338,6 +449,11 @@ def make_card(parent, **kwargs):
 root = tk.Tk()
 root.title("BMS Monitor  ·  UART Dashboard")
 root.configure(bg=COLORS["bg_root"])
+
+ser = connect_serial(root)
+if ser is None:
+    root.destroy()
+    raise SystemExit(0)
 
 WIN_W, WIN_H = 1200, 700
 sw = root.winfo_screenwidth()

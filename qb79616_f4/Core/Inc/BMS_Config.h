@@ -24,7 +24,7 @@
      BMS Configuration MACROS
    ------------------------------------
  */
-#define TOTALBOARDS 		33     //boards in stack (including the bridge): 32 slaves + bridge
+#define TOTALBOARDS 		25     //boards in stack (including the bridge): 24 slaves (3 segments of 8) + bridge
 #define SLAVEBOARDS			(TOTALBOARDS - 1)
 #define ACTIVE_CELLS		16
 #define Thermistor_GPIO 	2
@@ -58,6 +58,15 @@
 
 #define VOLT_CONV		0.00019073
 #define GUI
+
+// Bench-test only: BMS_Init() normally hangs forever (while(1)) on the first
+// slave that doesn't ack configure_OVUV/configure_OTUT/DEV_STAT, so it never
+// sets BMS_INIT_DONE_BIT and nothing downstream (GUI task included) ever
+// runs unless every one of the 24 slaves is connected and powered. Define
+// this to skip those hangs and let init complete with only the bridge
+// present, so the UART4->GUI link can be tested standalone.
+// REVERT: comment out this #define before real multi-board testing.
+#define BENCH_SKIP_ABSENT_SLAVE_HANG
 
 #define MAX(a, b)  ((a) > (b) ? (a) : (b))
 

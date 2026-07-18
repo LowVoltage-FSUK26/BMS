@@ -15,7 +15,7 @@ import time
 
 GPIO_LSB = 0.00015259  # matches VLSB_GPIO / GPIO_LSB in the real code
 CELL_LSB = 0.00019073  # matches VOLT_CONV / hex_to_cell_voltage
-NUM_BOARDS = 32  # matches NUM_SLAVES in BMS_GUI.py
+NUM_BOARDS = 24  # matches NUM_SLAVES in BMS_GUI.py
 
 
 class FakeSerial:

@@ -578,12 +578,16 @@ void BMS_Init(void const * argument)
 		if(configure_OVUV(i, slaveCellCount[i-1]) != 1)
 		{
 			//error
+
 			while(1);
+
 		}
 		if(configure_OTUT(i, slaveGPIOCount[i-1]) != 1)
 		{
 			//error
+
 			while(1);
+
 		}
 	}
 
@@ -604,7 +608,9 @@ void BMS_Init(void const * argument)
 		readReg(i, DEV_STAT, &dev_stat, 1, 200, FRMWRT_SGL_R);
 		if((dev_stat& 0x01) == 0){
 			//error
+#ifndef BENCH_SKIP_ABSENT_SLAVE_HANG
 			while(1);
+#endif
 		}
 	}
 

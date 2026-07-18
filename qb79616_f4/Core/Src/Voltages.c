@@ -17,14 +17,13 @@ float cellVoltages_board_float[SLAVEBOARDS][16];
 
 
 // index = slave number (0 = first slave after the bridge), value = active cell count for that slave
+// 3 segments of 8 slaves; each segment repeats the same 13/14 layout
 uint8_t slaveCellCount[SLAVEBOARDS] = {
 	//  0   1   2   3   4   5   6   7
 	   13, 14, 14, 13, 13, 14, 14, 13,
 	//  8   9  10  11  12  13  14  15
 	   13, 14, 14, 13, 13, 14, 14, 13,
 	// 16  17  18  19  20  21  22  23
-	   13, 14, 14, 13, 13, 14, 14, 13,
-	// 24  25  26  27  28  29  30  31
 	   13, 14, 14, 13, 13, 14, 14, 13
 };
 

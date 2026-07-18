@@ -293,7 +293,7 @@ void Bridge_AutoAddress(void)
 	//SET THE HIGHEST DEVICE IN THE STACK AS BOTH STACK AND TOP OF STACK
 	writeReg(TOTALBOARDS-1, BQ79616_COMM_CTRL, 0x03, 1, FRMWRT_SGL_W);
 
-
+	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 	//OPTIONAL: read back all device addresses on the Stack
 	//Future Modification: Change to stack read
 	for(currentBoard=1; currentBoard<TOTALBOARDS; currentBoard++)
@@ -302,7 +302,7 @@ void Bridge_AutoAddress(void)
 
 	}
 	//OPTIONAL: read register address 0x2001 and verify that the value is 0x14
-	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
+//	readReg(0, 0x2001, autoaddr_response_frame, 1, 0, FRMWRT_SGL_R);
 
 	//SYNCRHONIZE THE DLL WITH A THROW-AWAY READ
 	for(uint8_t i = 1; i < TOTALBOARDS; i++)
